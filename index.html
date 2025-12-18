@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <meta name="theme-color" content="#e11d48">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Sistema Vida 3.0 - AI Powered</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&family=Lora:ital,wght@0,400;1,400&family=Dancing+Script:wght@600&family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        /* --- ESTILOS BASE --- */
+        :root { 
+            --primary: #e11d48; --primary-light: #ffebf0;
+            --bg-body: #f4f6f9; --bg-card: #ffffff; 
+            --text-main: #1e293b; --text-sec: #64748b;
+            --border: #e2e8f0; --input-bg: #f8fafc; 
+            --shadow: 0 10px 40px -10px rgba(0,0,0,0.08);
+        }
+        [data-theme="dark"] { 
+            --primary: #fb7185; --primary-light: #2d1b20;
+            --bg-body: #0f172a; --bg-card: #1e293b; 
+            --text-main: #f1f5f9; --text-sec: #94a3b8;
+            --border: #334155; --input-bg: #334155; 
+            --shadow: 0 10px 40px -10px rgba(0,0,0,0.5);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--bg-body); color: var(--text-main); padding-bottom: 120px; transition: 0.3s; overflow-x: hidden; }
+
+        /* HEADER */
+        header { 
+            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px);
+            padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; 
+            position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); 
+        }
+        [data-theme="dark"] header { background: rgba(30, 41, 59, 0.95); }
+        .brand span:first-child { font-weight: 800; font-size: 1.1rem; color: var(--primary); display:block; line-height:1; }
+        .brand span:last-child { font-size: 0.65rem; color: var(--text-sec); font-weight: 600; text-transform: uppercase; }
+        
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+        .btn-config { background: var(--input-bg); border: 1px solid var(--border); color: var(--text-main); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .streak-badge { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; gap: 5px; }
+
+        .container { padding: 15px; max-width: 600px; margin: 0 auto; }
+        .screen { display: none; opacity: 0; transform: translateY(15px); transition: all 0.4s ease; }
+        .screen.active { display: block; opacity: 1; transform: translateY(0); }
+
+        /* EDITOR */
+        .tools-section { background: var(--bg-card); padding: 20px; border-radius: 24px; border: 1px solid var(--border); margin-bottom: 20px; position: relative; overflow: hidden; }
+        .ai-badge { position: absolute; top: 10px; right: 10px; font-size: 0.6rem; background: linear-gradient(90deg, #6366f1, #a855f7); color: white; padding: 2px 8px; border-radius: 10px; font-weight: 700; display: none; }
+        .ai-badge.active { display: block; }
+        
+        .search-row { display: flex; gap: 10px; margin-bottom: 15px; }
+        .search-input { flex: 1; padding: 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-main); outline: none; }
+        .btn-magic { background: linear-gradient(135deg, var(--primary), #db2777); color: white; border: none; width: 50px; border-radius: 14px; cursor: pointer; font-size: 1.2rem; transition: 0.3s; }
+        .btn-magic:active { transform: scale(0.9); }
+        .btn-magic.loading { animation: pulse 1.5s infinite; opacity: 0.7; pointer-events: none; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(0.95); } 100% { transform: scale(1); } }
+
+        .cat-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; }
+        .cat-chip { background: var(--input-bg); padding: 8px 16px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; color: var(--text-sec); white-space: nowrap; cursor: pointer; border: 1px solid var(--border); transition: 0.2s; }
+        .cat-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+        
+        .emoji-bar { margin-bottom: 15px; }
+        .btn-emoji-toggle { width: 100%; background: var(--input-bg); border: 1px solid var(--border); padding: 10px; border-radius: 12px; color: var(--text-sec); font-weight: 600; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; }
+        .emoji-grid { display: none; grid-template-columns: repeat(8, 1fr); gap: 5px; background: var(--bg-card); padding: 10px; border-radius: 16px; border: 1px solid var(--border); margin-top: 10px; max-height: 150px; overflow-y: auto; }
+        .emoji-grid.show { display: grid; }
+        .emoji-item { font-size: 1.4rem; cursor: pointer; padding: 5px; text-align: center; border-radius: 5px; }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.7rem; font-weight: 700; margin-bottom: 6px; color: var(--text-sec); text-transform: uppercase; }
+        input, textarea { width: 100%; padding: 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-main); font-size: 1rem; outline: none; }
+
+        /* MODAL CONFIG */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .modal-overlay.show { display: flex; }
+        .modal-box { background: var(--bg-card); width: 90%; max-width: 400px; padding: 25px; border-radius: 24px; border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-title { font-weight: 800; font-size: 1.2rem; color: var(--primary); }
+        .btn-close-modal { background: none; border: none; font-size: 1.5rem; color: var(--text-sec); cursor: pointer; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .btn-save-key { background: var(--primary); color: white; padding: 10px 20px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; }
+
+        /* --- PREVIEW UI (MOBILE FIRST) --- */
+        .top-nav-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
+        .btn-back { background: none; border: none; color: var(--text-sec); font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        .btn-inspire { background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; border: none; padding: 6px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+
+        /* Slider Box */
+        .slider-box {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; 
+            padding: 10px; margin-bottom: 15px; display: flex; gap: 15px;
+        }
+        .slider-wrapper { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+        .slider-label { font-size: 0.6rem; font-weight: 800; color: var(--text-sec); text-transform: uppercase; }
+        input[type=range] { width: 100%; -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: var(--primary); cursor: pointer; margin-top: -6px; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: var(--border); border-radius: 2px; }
+
+        /* CARTÃO (DESTAQUE) */
+        .card-preview-wrapper { 
+            width: 100%; aspect-ratio: 4/5; border-radius: 24px; text-align: center; margin-bottom: 15px; 
+            position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            padding: 40px; background-color: white; box-shadow: 0 10px 40px rgba(0,0,0,0.15); transition: all 0.3s ease; 
+        }
+
+        /* FORMATOS BAR */
+        .format-bar { 
+            display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; 
+            background: var(--bg-card); padding: 8px; border-radius: 16px; border: 1px solid var(--border);
+        }
+        .fmt-btn { 
+            flex: 1; padding: 8px; border-radius: 12px; border: 1px solid transparent; 
+            background: var(--input-bg); color: var(--text-sec); font-size: 0.75rem; font-weight: 700; 
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; transition: 0.2s;
+        }
+        .fmt-btn.active { background: var(--text-main); color: var(--bg-body); border-color: var(--text-main); }
+
+        /* OUTRAS FERRAMENTAS */
+        .scroll-tools { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+        
+        .tool-row { 
+            display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; white-space: nowrap;
+        }
+        
+        .tool-btn { 
+            flex: 0 0 auto; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border); 
+            background: var(--bg-card); color: var(--text-sec); font-size: 0.8rem; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; gap: 6px; 
+        }
+        .tool-btn.active { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+
+        /* TEMAS */
+        .preview-controls { 
+            display: flex; flex-direction: row; flex-wrap: nowrap; gap: 12px; overflow-x: auto; align-items: center; 
+            scrollbar-width: none; padding: 5px 0; margin-bottom: 20px;
+        }
+        .theme-btn { 
+            flex: 0 0 auto; width: 50px; height: 50px; border-radius: 14px; border: 2px solid transparent; 
+            cursor: pointer; position: relative; background-size: cover; 
+            display: flex; align-items: center; justify-content: center; 
+            font-size: 1.1rem; color: rgba(255,255,255,0.9); box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .theme-btn.active { border-color: var(--primary); transform: scale(1.1); }
+        .theme-btn.upload-btn { border: 2px dashed var(--text-sec); color: var(--text-sec); box-shadow: none; }
+
+        /* ASSETS VISUAIS */
+        .fmt-feed { aspect-ratio: 4/5; border-radius: 24px; }
+        .fmt-square { aspect-ratio: 1/1; border-radius: 24px; }
+        .fmt-story { aspect-ratio: 9/16; border-radius: 0; }
+
+        .card-sticker { position: absolute; top: 20px; right: 20px; z-index: 10; background: rgba(255,255,255,0.95); padding: 6px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: none; }
+        .card-sticker.visible { display: block; }
+
+        .filter-bw { filter: grayscale(100%); } .filter-sepia { filter: sepia(60%); } .filter-vivid { filter: saturate(1.5) contrast(1.1); }
+        .font-modern .pv-title { font-family: 'Poppins', sans-serif; } .font-classic .pv-title { font-family: 'Playfair Display', serif; } .font-hand .pv-title { font-family: 'Dancing Script', cursive; font-size: 2.4rem; }
+        .align-left .pv-msg { text-align: left; } .align-center .pv-msg { text-align: center; }
+        
+        .card-overlay { position: absolute; top:0; left:0; width:100%; height:100%; z-index: 1; pointer-events: none; transition: 0.3s; }
+        .dimmer-light { background: rgba(0,0,0,0.2); } .dimmer-heavy { background: rgba(0,0,0,0.5); }
+        
+        .card-content-layer { position: relative; z-index: 5; width: 100%; transition: font-size 0.2s; }
+        .pv-title { font-size: 1.8rem; font-weight: 800; margin-bottom: 10px; line-height: 1.1; }
+        .pv-msg { padding: 25px; border-radius: 18px; font-size: 0.95rem; line-height: 1.6; margin-bottom: 25px; background: rgba(255,255,255,0.85); backdrop-filter: blur(10px); color: #333; }
+        .pv-footer { font-size: 0.7rem; opacity: 0.7; text-transform: uppercase; margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 5px; }
+
+        .t-clean { background: white; color: #1e293b; } .t-clean .pv-title { color: #e11d48; }
+        .t-dark { background: #0f172a; color: white; } .t-dark .pv-msg { background: rgba(255,255,255,0.1); color: #e2e8f0; } .t-dark .pv-title { color: #818cf8; }
+        .t-gold { background: linear-gradient(135deg, #FDEB71 0%, #F8D800 100%); color: #5c4a08; }
+        .t-ocean { background: linear-gradient(to top, #30cfd0 0%, #330867 100%); color: white; } .t-ocean .pv-msg { background: rgba(255,255,255,0.15); color:white; }
+        .t-nature { background: linear-gradient(120deg, #d4fc79 0%, #96e6a1 100%); color: #14532d; }
+        .t-sunset { background: linear-gradient(to right, #fa709a 0%, #fee140 100%); color: #7f1d1d; }
+        .t-royal { background: linear-gradient(to right, #6a11cb 0%, #2575fc 100%); color: white; } .t-royal .pv-msg { background: rgba(255,255,255,0.15); color:white; }
+
+        .actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .btn-action { border: none; padding: 15px; border-radius: 14px; font-weight: 600; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: 0.2s; font-size: 0.9rem; }
+        .btn-action:active { transform: scale(0.96); }
+        .btn-share { background: #25D366; grid-column: span 2; }
+        .btn-audio { background: #f43f5e; color: white; grid-column: span 2; }
+        .btn-save { background: #3b82f6; } .btn-print { background: #64748b; } .btn-copy { background: #94a3b8; }
+
+        .bottom-nav { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; height: 65px; background: rgba(30, 41, 59, 0.9); backdrop-filter: blur(15px); border-radius: 35px; display: flex; justify-content: space-around; align-items: center; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.2); padding: 0 10px; transition: 0.3s; }
+        [data-theme="light"] .bottom-nav { background: rgba(255,255,255,0.95); border: 1px solid rgba(0,0,0,0.05); }
+        .nav-item { background: none; border: none; color: rgba(255,255,255,0.5); cursor: pointer; width: 50px; height: 50px; border-radius: 50%; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; }
+        [data-theme="light"] .nav-item { color: #94a3b8; }
+        .nav-item.active { background: var(--primary); color: white; transform: translateY(-5px); box-shadow: 0 5px 15px rgba(225, 29, 72, 0.4); }
+
+        #toast { visibility: hidden; background: #1e293b; color: #fff; text-align: center; border-radius: 50px; padding: 12px 20px; position: fixed; z-index: 2000; left: 50%; top: 20px; transform: translateX(-50%); font-size: 0.9rem; font-weight: 600; opacity: 0; transition: 0.3s; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        #toast.show { visibility: visible; opacity: 1; top: 40px; }
+
+        @media print {
+            body * { visibility: hidden; } #card-capture, #card-capture * { visibility: visible; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            #screen-preview { display: block !important; position: absolute; left: 0; top: 0; width: 100%; margin: 0; }
+            .card-preview-wrapper { box-shadow: none; border: none; width: 100% !important; margin: 0 auto; filter: none !important; }
+            .bottom-nav, .actions-grid, header, .preview-controls, .studio-tools, .top-nav-bar, .format-bar, .slider-box, .scroll-tools { display: none !important; }
+        }
+    </style>
+</head>
+<body data-theme="light">
+
+    <header>
+        <div class="brand"><span>Sistema Vida</span><span>IA Edition 3.0</span></div>
+        <div class="header-actions">
+            <div class="streak-badge" id="streakCounter"><i class="fas fa-fire"></i> <span>1</span> Dia</div>
+            <button class="btn-config" onclick="abrirConfig()"><i class="fas fa-cog"></i></button>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- MODAL CONFIG -->
+        <div class="modal-overlay" id="configModal">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <span class="modal-title">Configurar IA 🤖</span>
+                    <button class="btn-close-modal" onclick="fecharConfig()">&times;</button>
+                </div>
+                <p style="font-size: 0.9rem; color: var(--text-sec); margin-bottom: 15px;">
+                    Para criar devocionais infinitos, insira sua API Key do Google Gemini (Gratuito).
+                </p>
+                <div class="form-group">
+                    <label>Gemini API Key</label>
+                    <input type="password" id="apiKeyInput" placeholder="Cole sua chave AIza..." class="track-input">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-save-key" onclick="salvarKey()">Salvar Chave</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="screen-editor" class="screen active">
+            <div class="tools-section">
+                <div class="ai-badge" id="aiStatus"><i class="fas fa-bolt"></i> IA ATIVA</div>
+                <div class="section-title"><i class="fas fa-robot"></i> Gerador Inteligente</div>
+                <div class="search-row">
+                    <input type="text" id="temaBusca" class="search-input" placeholder="O que sente hoje? (ex: Medo, Esperança)">
+                    <button class="btn-magic" id="btnMagic" onclick="iniciarGeracao()"><i class="fas fa-wand-magic-sparkles"></i></button>
+                </div>
+                <div class="cat-scroll">
+                    <div class="cat-chip" onclick="setSearch('Financeiro')">💰 Financeiro</div>
+                    <div class="cat-chip" onclick="setSearch('Ansiedade')">😰 Ansiedade</div>
+                    <div class="cat-chip" onclick="setSearch('Família')">👨‍👩‍👧 Família</div>
+                    <div class="cat-chip" onclick="setSearch('Saúde')">🩺 Saúde</div>
+                    <div class="cat-chip" onclick="setSearch('Gratidão')">🙏 Gratidão</div>
+                    <div class="cat-chip" onclick="setSearch('Força')">💪 Força</div>
+                    <div class="cat-chip" onclick="setSearch('Perdão')">🕊️ Perdão</div>
+                </div>
+            </div>
+            
+            <div class="emoji-bar">
+                <button type="button" class="btn-emoji-toggle" onclick="toggleEmojiGrid()"><i class="far fa-smile"></i> Emojis <i class="fas fa-chevron-down"></i></button>
+                <div class="emoji-grid" id="emojiContainer"></div>
+            </div>
+            
+            <div class="form-group"><label>Título</label><input type="text" id="titulo" class="track-input"></div>
+            <div class="form-group"><label>Versículo</label><textarea id="versiculo" rows="3" class="track-input"></textarea><input type="text" id="referencia" class="track-input" placeholder="Ref" style="margin-top: 5px;"></div>
+            <div class="form-group"><label>Mensagem</label><textarea id="mensagem" rows="5" class="track-input"></textarea></div>
+            <div style="height: 60px;"></div>
+        </div>
+
+        <div id="screen-preview" class="screen">
+            <div class="top-nav-bar">
+                <button class="btn-back" onclick="navTo('editor')"><i class="fas fa-arrow-left"></i> Voltar</button>
+                <button class="btn-inspire" onclick="iniciarGeracao()"><i class="fas fa-random"></i> Criar Novo</button>
+            </div>
+
+            <div class="slider-box">
+                <div class="slider-wrapper">
+                    <span class="slider-label">Tamanho</span>
+                    <input type="range" min="10" max="24" value="16" oninput="ajustarFonte(this.value)">
+                </div>
+                <div class="slider-wrapper">
+                    <span class="slider-label">Transparência</span>
+                    <input type="range" min="0" max="100" value="85" oninput="ajustarOpacidade(this.value)">
+                </div>
+            </div>
+
+            <div class="card-preview-wrapper fmt-feed t-clean font-modern align-left" id="card-capture">
+                <div class="card-sticker" id="card-sticker">Bom Dia</div>
+                <div class="card-overlay" id="overlay-dim"></div>
+                <div class="card-content-layer">
+                    <div id="pv-title" class="pv-title">Título</div>
+                    <div id="pv-ref" class="pv-ref">REF</div>
+                    <span id="pv-verse" class="pv-verse">"Texto..."</span>
+                    <div id="pv-msg" class="pv-msg">Mensagem...</div>
+                    <div class="pv-footer"><i class="fas fa-heart" style="color:var(--primary)"></i> Sistema Vida • <span id="data-hoje"></span></div>
+                </div>
+            </div>
+
+            <div class="format-bar">
+                <div class="fmt-btn active" onclick="setFormat('fmt-feed', this)"><i class="far fa-square"></i> Feed</div>
+                <div class="fmt-btn" onclick="setFormat('fmt-story', this)"><i class="fas fa-mobile-alt"></i> Stories</div>
+                <div class="fmt-btn" onclick="setFormat('fmt-square', this)"><i class="fas fa-stop"></i> Quadrado</div>
+            </div>
+
+            <div class="scroll-tools">
+                <div class="tool-row">
+                    <button class="tool-btn active" onclick="setSticker('', this)"><i class="fas fa-ban"></i></button>
+                    <button class="tool-btn" onclick="setSticker('Bom Dia ☀️', this)">Bom Dia</button>
+                    <button class="tool-btn" onclick="setSticker('Boa Noite 🌙', this)">Boa Noite</button>
+                    <button class="tool-btn" onclick="setSticker('Gratidão 🙏', this)">Gratidão</button>
+                    <button class="tool-btn" onclick="setSticker('Fé em Deus ✝️', this)">Fé</button>
+                    <button class="tool-btn" onclick="setSticker('Versículo 📖', this)">Versículo</button>
+                </div>
+
+                <div class="tool-row">
+                    <button class="tool-btn" onclick="toggleFont()"><i class="fas fa-font"></i> Fonte</button>
+                    <button class="tool-btn" onclick="toggleAlign()"><i class="fas fa-align-center"></i> Alinhar</button>
+                    <button class="tool-btn" onclick="toggleDim()"><i class="fas fa-adjust"></i> Escurecer</button>
+                    <button class="tool-btn" onclick="setFilter('')">Normal</button>
+                    <button class="tool-btn" onclick="setFilter('filter-bw')">P&B</button>
+                    <button class="tool-btn" onclick="setFilter('filter-vivid')">Vívido</button>
+                </div>
+            </div>
+
+            <div class="preview-controls">
+                <button class="theme-btn upload-btn" onclick="document.getElementById('bgInput').click()">
+                    <i class="fas fa-camera"></i>
+                </button>
+                <input type="file" id="bgInput" accept="image/*" style="display:none" onchange="carregarFoto(event)">
+
+                <div class="theme-btn t-clean active" onclick="setTheme('t-clean', this)"><i class="fas fa-ban"></i></div>
+                <div class="theme-btn t-dark" onclick="setTheme('t-dark', this)"><i class="fas fa-moon"></i></div>
+                <div class="theme-btn t-gold" onclick="setTheme('t-gold', this)"><i class="fas fa-crown"></i></div>
+                <div class="theme-btn t-ocean" onclick="setTheme('t-ocean', this)"><i class="fas fa-water"></i></div>
+                <div class="theme-btn t-nature" onclick="setTheme('t-nature', this)"><i class="fas fa-leaf"></i></div>
+                <div class="theme-btn t-sunset" onclick="setTheme('t-sunset', this)"><i class="fas fa-sun"></i></div>
+                <div class="theme-btn t-royal" onclick="setTheme('t-royal', this)"><i class="fas fa-gem"></i></div>
+            </div>
+
+            <div class="actions-grid">
+                <button class="btn-action btn-audio" onclick="lerMensagem()"><i class="fas fa-volume-up"></i> Ouvir</button>
+                <button class="btn-action btn-share" onclick="compartilharInteligente()"><i class="fab fa-whatsapp"></i> Zap</button>
+                <button class="btn-action btn-save" onclick="baixar()"><i class="fas fa-download"></i> Salvar</button>
+                <button class="btn-action btn-copy" onclick="copiarTexto()"><i class="fas fa-copy"></i> Copiar</button>
+            </div>
+            <div style="height: 80px;"></div>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <button class="nav-item active" onclick="navTo('editor', this)"><i class="fas fa-pen"></i></button>
+        <button class="nav-item" onclick="navTo('preview', this)"><i class="fas fa-image"></i></button>
+        <button class="nav-item" onclick="toggleDarkMode()" id="btn-theme"><i class="fas fa-moon" id="icon-theme"></i></button>
+    </nav>
+
+    <div id="toast">Notificação</div>
+
+    <script>
+        // --- BANCO DE DADOS EXPANDIDO (OFFLINE) ---
+        const db = [
+            // Financeiro
+            { tags: "financeiro dinheiro provisão", titulo: "Deus Proverá", ref: "Filipenses 4:19", vers: "O meu Deus suprirá todas as necessidades.", msg: "Sua conta bancária não limita o poder de Deus. A provisão está a caminho." },
+            { tags: "financeiro dívida", titulo: "Sabedoria Divina", ref: "Provérbios 3:9", vers: "Honre o Senhor com as suas riquezas.", msg: "Entregue suas finanças a Deus e peça sabedoria. Ele abre portas onde não há." },
+            { tags: "trabalho sucesso", titulo: "Mãos Abençoadas", ref: "Salmos 90:17", vers: "Confirma sobre nós a obra das nossas mãos.", msg: "Seu esforço será recompensado. Deus está abençoando o fruto do seu trabalho hoje." },
+            // Ansiedade/Medo
+            { tags: "ansiedade medo paz", titulo: "Paz Real", ref: "João 14:27", vers: "Deixo-vos a paz, a minha paz vos dou.", msg: "Respire fundo. O controle do universo está nas mãos de quem te ama." },
+            { tags: "medo coragem", titulo: "Não Temas", ref: "Isaías 41:10", vers: "Não temas, porque eu sou contigo.", msg: "Você não está lutando sozinho. O Criador do universo está ao seu lado agora." },
+            { tags: "ansiedade futuro", titulo: "Cuidado Divino", ref: "1 Pedro 5:7", vers: "Lancem sobre ele toda a sua ansiedade.", msg: "Por que carregar esse peso sozinho? Entregue a Deus e durma em paz." },
+            // Família
+            { tags: "família casa filhos", titulo: "Lar Protegido", ref: "Josué 24:15", vers: "Eu e minha casa serviremos ao Senhor.", msg: "Deus está levantando muros de proteção ao redor da sua família hoje." },
+            { tags: "família amor", titulo: "Amor que Une", ref: "Colossenses 3:14", vers: "Acima de tudo, porém, revistam-se do amor.", msg: "O amor é o vínculo perfeito. Perdoe, abrace e restaure seu lar hoje." },
+            // Saúde
+            { tags: "saúde cura dor", titulo: "Cura Divina", ref: "Jeremias 30:17", vers: "Restaurarei a sua saúde e curarei as suas feridas.", msg: "Para Deus, o diagnóstico médico é apenas um detalhe. Creia no milagre." },
+            { tags: "saúde força", titulo: "Renovo Físico", ref: "Salmos 103:3", vers: "É ele que perdoa todos os seus pecados e cura todas as suas doenças.", msg: "Receba saúde do alto. Seu corpo é templo do Espírito Santo." },
+            // Gratidão
+            { tags: "gratidão vida", titulo: "Novo Fôlego", ref: "Lamentações 3:22", vers: "As misericórdias do Senhor são a causa de não sermos consumidos.", msg: "Você acordou! Isso é a prova de que Deus ainda não terminou com você." },
+            { tags: "gratidão alegria", titulo: "Coração Grato", ref: "1 Tessalonicenses 5:18", vers: "Em tudo dai graças.", msg: "A gratidão abre as portas para milagres maiores. Agradeça pelo que já tem." },
+            // Força/Cansaço
+            { tags: "força cansaço fraqueza", titulo: "Força no Cansaço", ref: "Isaías 40:31", vers: "Mas os que esperam no Senhor renovarão as forças.", msg: "Quando você não aguenta mais, é aí que a força de Deus começa a agir." },
+            { tags: "fé impossível", titulo: "Tudo é Possível", ref: "Marcos 9:23", vers: "Tudo é possível ao que crê.", msg: "Não olhe para o tamanho da montanha, olhe para o tamanho do seu Deus." },
+            // Perdão
+            { tags: "perdão mágoa", titulo: "Liberdade", ref: "Efésios 4:32", vers: "Perdoando-vos uns aos outros, como Deus vos perdoou.", msg: "Perdoar não é esquecer, é se libertar de um peso que não é seu." },
+            { tags: "amor deus", titulo: "Amor Incondicional", ref: "Romanos 8:39", vers: "Nada poderá nos separar do amor de Deus.", msg: "Você é amado(a) além da medida, independente dos seus erros." },
+            // Esperança
+            { tags: "esperança futuro", titulo: "Planos de Paz", ref: "Jeremias 29:11", vers: "Tenho planos de fazê-los prosperar e não de causar dano.", msg: "O seu futuro é brilhante porque Deus já está lá preparando tudo." },
+            { tags: "tristeza choro", titulo: "Alegria Vem", ref: "Salmos 30:5", vers: "O choro pode durar uma noite, mas a alegria vem pela manhã.", msg: "Enxugue as lágrimas. Um novo dia de vitória está nascendo para você." }
+        ];
+
+        const emojis = ["🙏", "🙌", "✨", "❤️", "✝️", "🕊️", "📖", "🔥", "💡", "😊", "💪", "🛡️", "👑", "🌿", "🌟", "💖", "🤝", "😭", "🌻", "😇", "🦁", "🌈", "☀️"];
+        let lastInput = null;
+
+        window.onload = function() {
+            checkStreak();
+            carregarKey();
+            const ec = document.getElementById('emojiContainer');
+            if(ec) { emojis.forEach(e => { const d=document.createElement('div'); d.className='emoji-item'; d.innerText=e; d.onclick=()=>insertEmoji(e); ec.appendChild(d); }); }
+            document.querySelectorAll('.track-input').forEach(i=>i.addEventListener('focus', ()=>lastInput=i));
+            lastInput = document.getElementById('mensagem');
+            // Inicializa com um aleatório do DB
+            gerarDoBanco(null);
+        };
+
+        // --- SISTEMA IA (GEMINI) ---
+        function abrirConfig() { document.getElementById('configModal').classList.add('show'); }
+        function fecharConfig() { document.getElementById('configModal').classList.remove('show'); }
+        
+        function salvarKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            if(key) {
+                localStorage.setItem('sistemaVidaKey', key);
+                showToast("Chave Salva! IA Ativada 🚀");
+                verificarIAAtiva(true);
+                fecharConfig();
+            } else {
+                showToast("Chave inválida");
+            }
+        }
+
+        function carregarKey() {
+            const key = localStorage.getItem('sistemaVidaKey');
+            if(key) {
+                document.getElementById('apiKeyInput').value = key;
+                verificarIAAtiva(true);
+            } else {
+                verificarIAAtiva(false);
+            }
+        }
+
+        function verificarIAAtiva(ativa) {
+            const badge = document.getElementById('aiStatus');
+            if(ativa) badge.classList.add('active');
+            else badge.classList.remove('active');
+        }
+
+        async function iniciarGeracao() {
+            const tema = document.getElementById('temaBusca').value.trim();
+            const apiKey = localStorage.getItem('sistemaVidaKey');
+            const btn = document.getElementById('btnMagic');
+
+            // Animação de carregamento
+            btn.classList.add('loading');
+            
+            // Se tem chave, tenta IA. Se falhar ou não tiver chave, usa Banco.
+            if(apiKey) {
+                try {
+                    await gerarComIA(tema, apiKey);
+                } catch (error) {
+                    console.error(error);
+                    showToast("Erro na IA. Usando Banco Offline.");
+                    gerarDoBanco(tema);
+                }
+            } else {
+                gerarDoBanco(tema);
+                if(!localStorage.getItem('alertedKey')) {
+                    setTimeout(() => showToast("Dica: Configure a IA na engrenagem!"), 2000);
+                    localStorage.setItem('alertedKey', 'true');
+                }
+            }
+            
+            btn.classList.remove('loading');
+        }
+
+        async function gerarComIA(tema, key) {
+            showToast("IA Pensando... ✨");
+            const promptContext = tema ? `sobre "${tema}"` : "sobre um tema bíblico aleatório (ex: fé, amor, coragem)";
+            
+            // Prompt para o Gemini
+            const prompt = `Gere um devocional cristão curto ${promptContext}. Responda APENAS em formato JSON com esta estrutura exata: {"titulo": "título curto", "ref": "Livro Cap:Vers", "vers": "texto do versículo", "msg": "mensagem encorajadora e curta"}`;
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+
+            const data = await response.json();
+            
+            try {
+                let text = data.candidates[0].content.parts[0].text;
+                // Limpar formatação markdown json se houver
+                text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                const json = JSON.parse(text);
+                
+                preencherCampos(json);
+                showToast("Gerado com IA! 🤖");
+                navTo('preview', document.querySelectorAll('.nav-item')[1]);
+            } catch (e) {
+                throw new Error("Erro ao interpretar JSON da IA");
+            }
+        }
+
+        // --- SISTEMA LEGADO (BANCO DE DADOS) ---
+        function setSearch(term) { document.getElementById('temaBusca').value = term; iniciarGeracao(); }
+        
+        function gerarDoBanco(tema) {
+            const t = tema ? tema.toLowerCase() : "";
+            const pool = t ? db.filter(i => i.tags.includes(t)) : db;
+            // Se não achar tag específica, usa o banco todo
+            const finalPool = pool.length ? pool : db;
+            const item = finalPool[Math.floor(Math.random() * finalPool.length)];
+            
+            preencherCampos(item);
+            showToast(t ? "Gerado (Offline)" : "Aleatório Gerado!");
+            if(tema) navTo('preview', document.querySelectorAll('.nav-item')[1]);
+        }
+
+        function preencherCampos(item) {
+            document.getElementById('titulo').value = item.titulo; 
+            document.getElementById('versiculo').value = item.vers;
+            document.getElementById('referencia').value = item.ref; 
+            document.getElementById('mensagem').value = item.msg;
+        }
+
+        // --- FUNÇÕES DE AJUSTE UI ---
+        function ajustarFonte(val) { document.querySelector('.card-content-layer').style.fontSize = val + 'px'; }
+        function ajustarOpacidade(val) { document.getElementById('pv-msg').style.backgroundColor = `rgba(255,255,255, ${val / 100})`; }
+
+        function setFormat(fmt, btn) {
+            const card = document.getElementById('card-capture');
+            card.classList.remove('fmt-feed', 'fmt-square', 'fmt-story');
+            card.classList.add(fmt);
+            document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            showToast("Formato Alterado");
+        }
+
+        function setSticker(text, btn) {
+            const el = document.getElementById('card-sticker');
+            if(!text) { el.classList.remove('visible'); showToast("Selo removido"); }
+            else { el.innerText = text; el.classList.add('visible'); showToast("Selo: " + text); }
+            btn.parentElement.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        function updatePreview() {
+            document.getElementById('pv-title').innerText = document.getElementById('titulo').value || "Título";
+            document.getElementById('pv-verse').innerText = `"${document.getElementById('versiculo').value}"`;
+            document.getElementById('pv-ref').innerText = document.getElementById('referencia').value || "Ref";
+            document.getElementById('pv-msg').innerText = document.getElementById('mensagem').value || "Mensagem...";
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('data-hoje').innerText = new Date().toLocaleDateString('pt-BR', options);
+        }
+
+        // --- ÁUDIO, TEMA E UPLOAD ---
+        function lerMensagem() {
+            if (window.location.protocol === 'content:') { alert("⚠️ Abra no navegador (Chrome/Safari) para ouvir."); return; }
+            if ('speechSynthesis' in window) {
+                const synth = window.speechSynthesis;
+                if (synth.speaking) { synth.cancel(); return; }
+                const t = document.getElementById('titulo').value;
+                const m = document.getElementById('mensagem').value;
+                const utter = new SpeechSynthesisUtterance(`${t}. ${m}`);
+                utter.lang = 'pt-BR'; utter.rate = 0.9;
+                synth.speak(utter); showToast("🔊 Lendo...");
+            } else { alert("Seu navegador não suporta áudio."); }
+        }
+
+        function toggleDarkMode() {
+            const body = document.body;
+            const icon = document.getElementById('icon-theme');
+            const current = body.getAttribute('data-theme');
+            if (current === 'light') {
+                body.setAttribute('data-theme', 'dark');
+                icon.classList.remove('fa-moon'); icon.classList.add('fa-sun');
+                showToast("Modo Escuro 🌙");
+            } else {
+                body.setAttribute('data-theme', 'light');
+                icon.classList.remove('fa-sun'); icon.classList.add('fa-moon');
+                showToast("Modo Claro ☀️");
+            }
+        }
+
+        function carregarFoto(e) {
+            const input = e.target ? e.target : e;
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    const card = document.getElementById('card-capture');
+                    card.style.backgroundImage = `url(${evt.target.result})`;
+                    card.style.backgroundSize = 'cover';
+                    card.style.backgroundPosition = 'center';
+                    setTheme('t-dark', null); // Força modo escuro para ler texto sobre foto
+                    document.getElementById('overlay-dim').className = 'card-overlay dimmer-heavy';
+                    showToast("Foto Carregada! 📸");
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // --- ESTILO ---
+        let fontState = 0;
+        function toggleFont() {
+            const fonts = ['font-modern', 'font-classic', 'font-hand'];
+            const card = document.getElementById('card-capture');
+            card.classList.remove(...fonts); fontState = (fontState + 1) % fonts.length; card.classList.add(fonts[fontState]);
+            showToast("Fonte alterada");
+        }
+        function toggleAlign() {
+            const card = document.getElementById('card-capture');
+            if(card.classList.contains('align-left')) { card.classList.replace('align-left', 'align-center'); showToast("Centralizado"); }
+            else { card.classList.replace('align-center', 'align-left'); showToast("Esquerda"); }
+        }
+        function toggleDim() {
+            const el = document.getElementById('overlay-dim');
+            if(el.className === 'card-overlay') el.className = 'card-overlay dimmer-light';
+            else if(el.className === 'card-overlay dimmer-light') el.className = 'card-overlay dimmer-heavy';
+            else el.className = 'card-overlay';
+            showToast("Sombra ajustada");
+        }
+        function setFilter(cls) {
+            const card = document.getElementById('card-capture');
+            card.classList.remove('filter-bw', 'filter-sepia', 'filter-vintage', 'filter-vivid');
+            if(cls) card.classList.add(cls);
+            showToast("Filtro aplicado");
+        }
+        function setTheme(themeClass, btn) {
+            const card = document.getElementById('card-capture');
+            const currentClasses = Array.from(card.classList);
+            currentClasses.forEach(cls => { if(cls.startsWith('t-')) card.classList.remove(cls); });
+            card.classList.add(themeClass); card.style.backgroundImage = '';
+            card.classList.remove('filter-bw', 'filter-sepia', 'filter-vintage', 'filter-vivid');
+            document.getElementById('overlay-dim').className = 'card-overlay'; 
+            document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+            if(btn) btn.classList.add('active');
+        }
+        
+        function toggleEmojiGrid() { document.getElementById('emojiContainer').classList.toggle('show'); }
+        function insertEmoji(char) { if(lastInput) { lastInput.value += char; showToast("Adicionado!"); } }
+
+        // --- EXPORTAR E SALVAR ---
+        function checkStreak() {
+            let last = localStorage.getItem('lastVisit'), s = parseInt(localStorage.getItem('streak') || 0), today = new Date().toDateString();
+            if (last !== today) { if (last === new Date(Date.now() - 86400000).toDateString()) s++; else s = 1; localStorage.setItem('lastVisit', today); localStorage.setItem('streak', s); }
+            if(document.querySelector('#streakCounter span')) document.querySelector('#streakCounter span').innerText = s;
+        }
+
+        async function compartilharInteligente() {
+            const card = document.getElementById('card-capture'); showToast("Processando...");
+            try {
+                const canvas = await html2canvas(card, { scale: 2, useCORS: true, allowTaint: true });
+                canvas.toBlob(async (blob) => {
+                    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                    if (isMobile && navigator.share) {
+                        const file = new File([blob], "mensagem_vida.png", { type: "image/png" });
+                        navigator.share({ files: [file], title: 'Sistema Vida', text: 'Mensagem do Dia!' }).catch(() => {});
+                    } else {
+                        try {
+                            const item = new ClipboardItem({ "image/png": blob });
+                            await navigator.clipboard.write([item]);
+                            showToast("Imagem COPIADA! Dê Ctrl+V no Zap.");
+                            setTimeout(() => { window.open("https://web.whatsapp.com", "_blank"); }, 1000);
+                        } catch (err) { showToast("Baixando imagem..."); baixarLink(canvas); setTimeout(() => { window.open("https://web.whatsapp.com", "_blank"); }, 1500); }
+                    }
+                });
+            } catch (error) { showToast("Erro. Baixando..."); setTimeout(baixar, 500); }
+        }
+        function baixar() {
+            const card = document.getElementById('card-capture'); showToast("Salvando...");
+            html2canvas(card, { scale: 3, useCORS: true, allowTaint: true }).then(canvas => { baixarLink(canvas); }).catch(e => { alert("Erro ao baixar."); });
+        }
+        function baixarLink(canvas) {
+            const link = document.createElement('a'); link.download = 'devocional_' + Date.now() + '.png'; link.href = canvas.toDataURL(); link.click(); showToast("Salvo na Galeria! 📥");
+        }
+        function copiarTexto() {
+            const t = document.getElementById('titulo').value; const v = document.getElementById('versiculo').value; const m = document.getElementById('mensagem').value;
+            const texto = `*${t}*\n\n"${v}"\n\n${m}\n\n_Enviado via Sistema Vida_`;
+            navigator.clipboard.writeText(texto).then(() => showToast("Texto copiado!"));
+        }
+        function navTo(screenId, btn) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('screen-' + screenId).classList.add('active');
+            if(btn) { document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
+            if(screenId === 'preview') updatePreview(); window.scrollTo(0,0);
+        }
+        function showToast(msg) {
+            const t = document.getElementById('toast'); t.innerText = msg; t.className = "show"; setTimeout(() => t.className = "", 3000);
+        }
+    </script>
+</body>
+</html>
