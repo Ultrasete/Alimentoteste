@@ -90,7 +90,16 @@
         /* --- PREVIEW UI (MOBILE FIRST) --- */
         .top-nav-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
         .btn-back { background: none; border: none; color: var(--text-sec); font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; }
-        .btn-inspire { background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; border: none; padding: 6px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        
+        /* Botão Inspire (Criar Novo) Animado */
+        .btn-inspire { 
+            background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; border: none; 
+            padding: 8px 16px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; 
+            cursor: pointer; display: flex; align-items: center; gap: 6px; transition: 0.3s;
+        }
+        .btn-inspire.loading { opacity: 0.7; pointer-events: none; }
+        .btn-inspire.loading i { animation: spin 1s infinite linear; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         /* Slider Box */
         .slider-box {
@@ -221,7 +230,7 @@
                     <button class="btn-close-modal" onclick="fecharConfig()">&times;</button>
                 </div>
                 <p style="font-size: 0.9rem; color: var(--text-sec); margin-bottom: 15px;">
-                    Para criar devocionais infinitos, insira sua API Key do Google Gemini (Gratuito).
+                    Sua chave de IA já está configurada no sistema, mas você pode alterá-la aqui se desejar.
                 </p>
                 <div class="form-group">
                     <label>Gemini API Key</label>
@@ -239,7 +248,7 @@
                 <div class="section-title"><i class="fas fa-robot"></i> Gerador Inteligente</div>
                 <div class="search-row">
                     <input type="text" id="temaBusca" class="search-input" placeholder="O que sente hoje? (ex: Medo, Esperança)">
-                    <button class="btn-magic" id="btnMagic" onclick="iniciarGeracao()"><i class="fas fa-wand-magic-sparkles"></i></button>
+                    <button class="btn-magic" id="btnMagic" onclick="iniciarGeracao(this)"><i class="fas fa-wand-magic-sparkles"></i></button>
                 </div>
                 <div class="cat-scroll">
                     <div class="cat-chip" onclick="setSearch('Financeiro')">💰 Financeiro</div>
@@ -266,7 +275,7 @@
         <div id="screen-preview" class="screen">
             <div class="top-nav-bar">
                 <button class="btn-back" onclick="navTo('editor')"><i class="fas fa-arrow-left"></i> Voltar</button>
-                <button class="btn-inspire" onclick="iniciarGeracao()"><i class="fas fa-random"></i> Criar Novo</button>
+                <button class="btn-inspire" onclick="iniciarGeracao(this)"><i class="fas fa-random"></i> Criar Novo</button>
             </div>
 
             <div class="slider-box">
@@ -384,8 +393,17 @@
 
         const emojis = ["🙏", "🙌", "✨", "❤️", "✝️", "🕊️", "📖", "🔥", "💡", "😊", "💪", "🛡️", "👑", "🌿", "🌟", "💖", "🤝", "😭", "🌻", "😇", "🦁", "🌈", "☀️"];
         let lastInput = null;
+        let lastGeneratedTitle = ""; // Para evitar repetição exata imediata
+
+        // CONSTANTE COM A CHAVE DA IA (Inserida pelo usuário)
+        const DEFAULT_KEY = "AIzaSyAD1-BDnwEqeqvSwe4jCYSgokwNMUjv-us";
 
         window.onload = function() {
+            // Auto-configurar chave se não existir
+            if (!localStorage.getItem('sistemaVidaKey')) {
+                localStorage.setItem('sistemaVidaKey', DEFAULT_KEY);
+            }
+
             checkStreak();
             carregarKey();
             const ec = document.getElementById('emojiContainer');
@@ -428,10 +446,12 @@
             else badge.classList.remove('active');
         }
 
-        async function iniciarGeracao() {
+        async function iniciarGeracao(btnElement) {
             const tema = document.getElementById('temaBusca').value.trim();
             const apiKey = localStorage.getItem('sistemaVidaKey');
-            const btn = document.getElementById('btnMagic');
+            
+            // Define qual botão animar (se passado, senão pega o magic wand)
+            const btn = btnElement || document.getElementById('btnMagic');
 
             // Animação de carregamento
             btn.classList.add('loading');
@@ -460,8 +480,8 @@
             showToast("IA Pensando... ✨");
             const promptContext = tema ? `sobre "${tema}"` : "sobre um tema bíblico aleatório (ex: fé, amor, coragem)";
             
-            // Prompt para o Gemini
-            const prompt = `Gere um devocional cristão curto ${promptContext}. Responda APENAS em formato JSON com esta estrutura exata: {"titulo": "título curto", "ref": "Livro Cap:Vers", "vers": "texto do versículo", "msg": "mensagem encorajadora e curta"}`;
+            // Prompt para o Gemini (adicionando randomness)
+            const prompt = `Gere um devocional cristão curto ${promptContext}. Seja criativo e não repita textos comuns. Responda APENAS em formato JSON com esta estrutura exata: {"titulo": "título curto", "ref": "Livro Cap:Vers", "vers": "texto do versículo", "msg": "mensagem encorajadora e curta"}`;
 
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
             
@@ -495,7 +515,20 @@
             const pool = t ? db.filter(i => i.tags.includes(t)) : db;
             // Se não achar tag específica, usa o banco todo
             const finalPool = pool.length ? pool : db;
-            const item = finalPool[Math.floor(Math.random() * finalPool.length)];
+            
+            let item;
+            // Tenta evitar repetição imediata
+            if (finalPool.length > 1) {
+                let attempts = 0;
+                do {
+                    item = finalPool[Math.floor(Math.random() * finalPool.length)];
+                    attempts++;
+                } while (item.titulo === lastGeneratedTitle && attempts < 5);
+            } else {
+                item = finalPool[0];
+            }
+            
+            lastGeneratedTitle = item.titulo;
             
             preencherCampos(item);
             showToast(t ? "Gerado (Offline)" : "Aleatório Gerado!");
