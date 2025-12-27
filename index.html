@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Sistema Vida - Alimento Diário</title>
     
-    <!-- Bibliotecas -->
+    <!-- Bibliotecas Essenciais -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -23,7 +23,7 @@
 
     <style>
         /* --- ESTILOS GERAIS --- */
-        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #f3f4f6; }
         .font-serif { font-family: 'Merriweather', serif; }
         .font-handwriting { font-family: 'Courier New', Courier, monospace; }
         .font-arcade { font-family: 'Press Start 2P', cursive; }
@@ -232,84 +232,18 @@
 <body class="bg-gray-50 text-gray-900">
     <div id="root"></div>
 
+    <!-- FUNÇÕES GLOBAIS (FORA DO BABEL PARA EVITAR ERROS) -->
+    <script>
+        window.formatarEMV = function(id, value) { const length = ('00' + value.length).slice(-2); return id + length + value; };
+        window.simplificarTexto = function(text) { return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/g, ''); };
+        window.crc16 = function(data) { let crc = 0xFFFF; for (let i = 0; i < data.length; i++) { crc ^= data.charCodeAt(i) << 8; for (let j = 0; j < 8; j++) { crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : crc << 1; } } return ('0000' + (crc & 0xFFFF).toString(16).toUpperCase()).slice(-4); };
+    </script>
+
     <script type="text/babel">
         const { useState, useEffect, useRef, Component, useMemo } = React;
 
-        // --- ERROR BOUNDARY ---
-        class ErrorBoundary extends Component {
-            constructor(props) {
-                super(props);
-                this.state = { hasError: false };
-            }
-            static getDerivedStateFromError(error) { return { hasError: true }; }
-            render() {
-                if (this.state.hasError) return <div className="p-8 text-center text-red-800"><h1>Algo correu mal.</h1><button onClick={()=>window.location.reload()} className="mt-4 bg-red-700 text-white px-4 py-2 rounded">Recarregar</button></div>;
-                return this.props.children;
-            }
-        }
-        
-        // --- PERSISTÊNCIA ---
-        function usePersistentState(key, initialValue) {
-            const [state, setState] = useState(() => {
-                try { const item = localStorage.getItem(key); return item ? JSON.parse(item) : initialValue; } catch { return initialValue; }
-            });
-            useEffect(() => { try { localStorage.setItem(key, JSON.stringify(state)); } catch {} }, [key, state]);
-            return [state, setState];
-        }
-
-        // --- SONS ---
-        const playSoundEffect = (type) => {
-            try {
-                const now = Tone.now();
-                if (type === 'correct' || type === 'quiz_correct' || type === 'hangman_correct') {
-                    const synth = new Tone.Synth({ oscillator: { type: 'triangle' } }).toDestination();
-                    synth.triggerAttackRelease('E5', '16n', now);
-                } else if (type === 'wrong' || type === 'quiz_wrong' || type === 'hangman_wrong') {
-                    const synth = new Tone.Synth({ oscillator: { type: 'square' } }).toDestination();
-                    synth.triggerAttackRelease('A2', '8n', now);
-                } else if (type === 'win') {
-                    const synth = new Tone.PolySynth(Tone.Synth).toDestination();
-                    synth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "4n");
-                } else if (type === 'lose') {
-                    const synth = new Tone.Synth().toDestination();
-                    synth.triggerAttackRelease('C3', '4n', now);
-                }
-            } catch (e) {}
-        };
-
-        // --- ÍCONES ---
-        const icons = {
-            'home': <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />,
-            'book-open': <><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></>,
-            'user': <><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>,
-            'gamepad-2': <><line x1="6" x2="10" y1="12" y2="12" /><line x1="8" x2="8" y1="10" y2="14" /><line x1="15" x2="15.01" y1="13" y2="13" /><line x1="18" x2="18.01" y1="11" y2="11" /><rect width="20" height="12" x="2" y="6" rx="2" /></>,
-            'qr-code': <><rect width="5" height="5" x="3" y="3" rx="1" /><rect width="5" height="5" x="16" y="3" rx="1" /><rect width="5" height="5" x="3" y="16" rx="1" /><path d="M21 16h-3a2 2 0 0 0-2 2v3" /><path d="M21 21v.01" /><path d="M12 7v3a2 2 0 0 1-2 2H7" /><path d="M3 12h.01" /><path d="M12 3h.01" /><path d="M12 16v.01" /><path d="M16 12h1" /><path d="M21 12v.01" /><path d="M12 21v-1" /></>,
-            'radio': <><circle cx="12" cy="12" r="2" /><path d="M16.24 7.76a6 6 0 0 1 0 8.49" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /></>,
-            'calendar': <><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></>,
-            'megaphone': <><path d="m3 11 18-5v12L3 14v-3z" /><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" /></>,
-            'menu': <><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="18" y2="18" /></>,
-            'arrow-left': <><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></>,
-            'chevron-left': <path d="m15 18-6-6 6-6" />,
-            'chevron-right': <path d="m9 18 6-6-6-6" />,
-            'check-circle': <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></>,
-            'volume-2': <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /></>,
-            'square': <rect width="18" height="18" x="3" y="3" rx="2" />,
-            'refresh-cw': <><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></>,
-            'copy': <><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>,
-            'zap': <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
-            'help-circle': <><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></>,
-            'search': <><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></>,
-            'download': <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></>,
-            'trash-2': <><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></>
-        };
-
-        const IconWrapper = ({ name, size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
-                {icons[name] || null}
-            </svg>
-        );
-
-        // --- DADOS PARA A FORCA ---
+        // --- GLOBAL CONSTANTS (DEFINIÇÕES DE DADOS GLOBAIS) ---
+        // Definir aqui para estarem acessíveis a todos os componentes
         const HANGMAN_CATEGORIES = {
             'BÍBLICO': ['GOLIAS', 'MOISES', 'ABRAAO', 'SAMUEL', 'SALOMAO', 'MATEUS', 'GABRIEL', 'JERUSALEM', 'GENESIS', 'PENTATEUCO', 'TABERNACULO', 'ARCA', 'SINAI', 'EGITO', 'MANA', 'JORDANIA', 'JERICO', 'DANIEL', 'ESTRELA', 'BETANIA'],
             'FRUTAS': ['MELANCIA', 'ABACAXI', 'BANANA', 'MORANGO', 'LARANJA', 'UVA', 'MANGA', 'PERA', 'ABACATE', 'PITAYA', 'TAMARINDO', 'CEREJA', 'GOIABA'],
@@ -378,7 +312,8 @@
             { id: 'studio', label: 'Estúdio', icon: 'magic' }, 
             { id: 'qrcode', label: 'QR Code', icon: 'qr-code' },
             { id: 'radio', label: 'Rádio', icon: 'radio' },
-            { id: 'notes', label: 'Diário', icon: 'calendar' }
+            { id: 'notes', label: 'Diário', icon: 'calendar' },
+            { id: 'financial', label: 'Financeiro', icon: 'dollar-sign' }
         ];
 
         const nameDatabase = { 
@@ -392,9 +327,120 @@
         
         const bibleBooks = ["Gênesis", "Êxodo", "Levítico", "Números", "Deuteronômio", "Josué", "Juízes", "Rute", "1 Samuel", "2 Samuel", "1 Reis", "2 Reis", "1 Crônicas", "2 Crônicas", "Esdras", "Neemias", "Ester", "Jó", "Salmos", "Provérbios", "Eclesiastes", "Cânticos", "Isaías", "Jeremias", "Lamentações", "Ezequiel", "Daniel", "Oseias", "Joel", "Amós", "Obadias", "Jonas", "Miqueias", "Naum", "Habacuque", "Sofonias", "Ageu", "Zacarias", "Malaquias", "Mateus", "Marcos", "Lucas", "João", "Atos", "Romanos", "1 Coríntios", "2 Coríntios", "Gálatas", "Efésios", "Filipenses", "Colossenses", "1 Tessalonicenses", "2 Tessalonicenses", "1 Timóteo", "2 Timóteo", "Tito", "Filemom", "Hebreus", "Tiago", "1 Pedro", "2 Pedro", "1 João", "2 João", "3 João", "Judas", "Apocalipse"];
 
-        function formatarEMV(id, value) { const length = ('00' + value.length).slice(-2); return `${id}${length}${value}`; }
-        function simplificarTexto(text) { return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/g, ''); }
-        function crc16(data) { let crc = 0xFFFF; for (let i = 0; i < data.length; i++) { crc ^= data.charCodeAt(i) << 8; for (let j = 0; j < 8; j++) { crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : crc << 1; } } return ('0000' + (crc & 0xFFFF).toString(16).toUpperCase()).slice(-4); }
+        // --- ERROR BOUNDARY ---
+        class ErrorBoundary extends Component {
+            constructor(props) {
+                super(props);
+                this.state = { hasError: false };
+            }
+            static getDerivedStateFromError(error) { return { hasError: true }; }
+            render() {
+                if (this.state.hasError) return (
+                    <div className="min-h-screen flex items-center justify-center bg-red-50 p-4">
+                        <div className="text-center">
+                            <h1 className="text-red-800 text-xl font-bold mb-2">Ops! Algo correu mal.</h1>
+                            <p className="text-red-600 mb-4">Tente recarregar a página.</p>
+                            <button onClick={()=>window.location.reload()} className="bg-red-700 text-white px-6 py-2 rounded-full font-bold shadow hover:bg-red-800 transition-transform active:scale-95">Recarregar</button>
+                            <button onClick={()=>{localStorage.clear(); window.location.reload()}} className="block mx-auto mt-4 text-xs text-gray-400 underline">Limpar Dados e Recarregar</button>
+                        </div>
+                    </div>
+                );
+                return this.props.children;
+            }
+        }
+        
+        // --- PERSISTÊNCIA SEGURA ---
+        function usePersistentState(key, initialValue) {
+            const [state, setState] = useState(() => {
+                try {
+                    const item = localStorage.getItem(key);
+                    return item ? JSON.parse(item) : initialValue;
+                } catch (error) {
+                    console.warn(`Erro ao carregar ${key} do localStorage:`, error);
+                    return initialValue;
+                }
+            });
+            
+            useEffect(() => {
+                try {
+                    localStorage.setItem(key, JSON.stringify(state));
+                } catch (error) {
+                    console.error(`Erro ao salvar ${key}:`, error);
+                }
+            }, [key, state]);
+            
+            return [state, setState];
+        }
+
+        // --- SONS ---
+        const playSoundEffect = (type) => {
+            try {
+                if(typeof Tone === 'undefined') return;
+                const now = Tone.now();
+                if (type === 'correct' || type === 'quiz_correct' || type === 'hangman_correct') {
+                    const synth = new Tone.Synth({ oscillator: { type: 'triangle' } }).toDestination();
+                    synth.triggerAttackRelease('E5', '16n', now);
+                } else if (type === 'wrong' || type === 'quiz_wrong' || type === 'hangman_wrong') {
+                    const synth = new Tone.Synth({ oscillator: { type: 'square' } }).toDestination();
+                    synth.triggerAttackRelease('A2', '8n', now);
+                } else if (type === 'win') {
+                    const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                    synth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "4n");
+                } else if (type === 'lose') {
+                    const synth = new Tone.Synth().toDestination();
+                    synth.triggerAttackRelease('C3', '4n', now);
+                }
+            } catch (e) { console.log("Áudio indisponível"); }
+        };
+
+        // --- ÍCONES ---
+        const icons = {
+            'home': <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />,
+            'book-open': <><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></>,
+            'user': <><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>,
+            'gamepad-2': <><line x1="6" x2="10" y1="12" y2="12" /><line x1="8" x2="8" y1="10" y2="14" /><line x1="15" x2="15.01" y1="13" y2="13" /><line x1="18" x2="18.01" y1="11" y2="11" /><rect width="20" height="12" x="2" y="6" rx="2" /></>,
+            'qr-code': <><rect width="5" height="5" x="3" y="3" rx="1" /><rect width="5" height="5" x="16" y="3" rx="1" /><rect width="5" height="5" x="3" y="16" rx="1" /><path d="M21 16h-3a2 2 0 0 0-2 2v3" /><path d="M21 21v.01" /><path d="M12 7v3a2 2 0 0 1-2 2H7" /><path d="M3 12h.01" /><path d="M12 3h.01" /><path d="M12 16v.01" /><path d="M16 12h1" /><path d="M21 12v.01" /><path d="M12 21v-1" /></>,
+            'radio': <><circle cx="12" cy="12" r="2" /><path d="M16.24 7.76a6 6 0 0 1 0 8.49" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /></>,
+            'calendar': <><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></>,
+            'megaphone': <><path d="m3 11 18-5v12L3 14v-3z" /><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" /></>,
+            'menu': <><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="18" y2="18" /></>,
+            'arrow-left': <><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></>,
+            'chevron-left': <path d="m15 18-6-6 6-6" />,
+            'chevron-right': <path d="m9 18 6-6-6-6" />,
+            'check-circle': <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></>,
+            'volume-2': <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /></>,
+            'square': <rect width="18" height="18" x="3" y="3" rx="2" />,
+            'refresh-cw': <><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></>,
+            'copy': <><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>,
+            'zap': <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
+            'help-circle': <><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></>,
+            'search': <><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></>,
+            'download': <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></>,
+            'trash-2': <><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></>,
+            'magic': <path d="m19 14 3-6-6-3" />,
+            'dollar-sign': <><line x1="12" x2="12" y1="2" y2="22" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></>,
+            'trending-up': <><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></>,
+            'credit-card': <><rect x="1" y="4" width="22" height="16" rx="2" ry="2" /><line x1="1" y1="10" x2="23" y2="10" /></>,
+            'briefcase': <><rect width="20" height="14" x="2" y="7" rx="2" ry="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></>,
+            'users': <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
+            'plus': <><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></>,
+            'list': <><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></>,
+            'pie-chart': <><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></>,
+            'lock': <><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></>,
+            'file-text': <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></>,
+            'check': <polyline points="20 6 9 17 4 12"></polyline>,
+            'edit-2': <><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></>,
+            'calculator': <><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16" y2="14"></line><line x1="8" y1="14" x2="8" y2="14"></line><line x1="12" y1="14" x2="12" y2="14"></line><line x1="8" y1="18" x2="8" y2="18"></line><line x1="12" y1="18" x2="12" y2="18"></line><line x1="16" y1="18" x2="16" y2="18"></line></>,
+            'x': <><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></>,
+            'wifi-off': <><line x1="1" y1="1" x2="23" y2="23"></line><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path><path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></>,
+            'download-cloud': <><polyline points="8 17 12 21 16 17"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path></>
+        };
+
+        const IconWrapper = ({ name, size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+                {icons[name] || null}
+            </svg>
+        );
 
         // --- COMPONENTE DO ESTÚDIO (PROJETO 2 - V31.1 Clean Edition) ---
         const CardStudio = ({ onExit }) => {
@@ -436,7 +482,6 @@
             const emojis = ["🙏", "🙌", "✨", "❤️", "✝️", "🕊️", "📖", "🔥", "💡", "😊", "💪", "🛡️", "👑", "🌿", "🌟", "💖", "🤝", "😭", "🌻", "😇", "🦁", "🌈", "☀️", "🚀", "💰", "💼", "🧠"];
             const magicBackgrounds = ["https://images.unsplash.com/photo-1519681393798-3828fb4090bb?q=80&w=1000", "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=1000", "https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=1000"];
             
-            // New theme and font arrays for randomization
             const themes = ['t-clean', 't-dark', 't-ocean', 't-nature', 't-gold', 't-sunset', 't-royal', 't-berry', 't-mint'];
             const fonts = ['font-modern', 'font-classic', 'font-hand', 'font-bold', 'font-marker'];
 
@@ -455,7 +500,6 @@
                         container.appendChild(p);
                     }
                 }
-                // Streak Logic
                 let last = localStorage.getItem('lastVisit');
                 let s = parseInt(localStorage.getItem('streak') || 0);
                 const today = new Date().toDateString();
@@ -470,7 +514,6 @@
             // Drag Logic
             useEffect(() => {
                 if(activeScreen === 'preview') {
-                    // 3D Tilt
                     const container = document.getElementById('card-container-3d');
                     const card = document.getElementById('card-capture');
                     if(container && card) {
@@ -488,7 +531,6 @@
                         return () => { container.removeEventListener('mousemove', handleMove); container.removeEventListener('mouseleave', handleLeave); }
                     }
                     
-                    // Draggable Items
                     const draggables = document.querySelectorAll('.draggable-item');
                     draggables.forEach(el => {
                         let isDragging = false;
@@ -539,7 +581,7 @@
                     mensagem: item.msg,
                     themeClass: randomTheme,
                     fontClass: randomFont,
-                    bgImage: null // reset custom bg to show theme color
+                    bgImage: null
                 }));
                 setActiveScreen('preview');
                 alert("✨ Nova inspiração gerada!");
@@ -549,7 +591,6 @@
                 const card = document.getElementById('card-capture');
                 const originalTransform = card.style.transform;
                 card.style.transform = 'none';
-                
                 html2canvas(card, { scale: 3, backgroundColor: null, useCORS: true, allowTaint: true }).then(canvas => {
                     const link = document.createElement('a');
                     link.download = 'sistema_vida_card.png';
@@ -615,40 +656,23 @@
             return (
                 <div className="studio-wrapper" data-theme={themeMode}>
                     <div id="studio-particles" className="studio-particles"></div>
-                    
                     <div className="studio-header">
-                        <div className="flex flex-col">
-                            <span className="font-bold text-red-600 text-lg">Sistema Vida</span>
-                            <span className="text-[10px] uppercase tracking-widest opacity-60">Clean 31.1</span>
-                        </div>
+                        <div className="flex flex-col"><span className="font-bold text-red-600 text-lg">Sistema Vida</span><span className="text-[10px] uppercase tracking-widest opacity-60">Clean 31.1</span></div>
                         <div className="streak-badge"><i className="fas fa-fire"></i> {streak} Dia</div>
                         <button onClick={onExit} className="text-xs bg-gray-200 px-3 py-1 rounded-full font-bold hover:bg-gray-300 ml-2">Sair</button>
                     </div>
-
                     <div className="studio-container">
                         {activeScreen === 'editor' && (
                             <div className="animate-fadeIn">
                                 <div className="tools-section">
                                     <h3 className="text-xs font-bold text-gray-400 uppercase mb-3"><i className="fas fa-bolt text-yellow-500 mr-2"></i> Gerador Rápido</h3>
-                                    <div className="search-row">
-                                        <i className="fas fa-search search-icon"></i>
-                                        <input type="text" className="search-input" placeholder="Sobre o que quer falar?" />
-                                        <button className="btn-magic" onClick={() => gerarConteudo()}><i className="fas fa-wand-magic-sparkles"></i></button>
-                                    </div>
-                                    <div className="cat-scroll">
-                                        {['Sucesso', 'Fé', 'Ansiedade', 'Amor', 'Gratidão', 'Gym'].map(tag => (
-                                            <div key={tag} className="cat-chip" onClick={() => gerarConteudo(tag)}>{tag}</div>
-                                        ))}
-                                    </div>
+                                    <div className="search-row"><i className="fas fa-search search-icon"></i><input type="text" className="search-input" placeholder="Sobre o que quer falar?" /><button className="btn-magic" onClick={() => gerarConteudo()}><i className="fas fa-wand-magic-sparkles"></i></button></div>
+                                    <div className="cat-scroll">{['Sucesso', 'Fé', 'Ansiedade', 'Amor', 'Gratidão', 'Gym'].map(tag => (<div key={tag} className="cat-chip" onClick={() => gerarConteudo(tag)}>{tag}</div>))}</div>
                                 </div>
-
                                 <div className="emoji-bar">
                                     <button onClick={()=>setEmojiOpen(!emojiOpen)} className="w-full bg-gray-100 p-3 rounded-xl text-xs font-bold text-gray-500 flex justify-center gap-2"><i className="far fa-smile"></i> Galeria de Emojis</button>
-                                    <div className={`emoji-grid ${emojiOpen ? 'show' : ''}`}>
-                                        {emojis.map(e => <div key={e} className="emoji-item" onClick={()=>insertEmoji(e)}>{e}</div>)}
-                                    </div>
+                                    <div className={`emoji-grid ${emojiOpen ? 'show' : ''}`}>{emojis.map(e => <div key={e} className="emoji-item" onClick={()=>insertEmoji(e)}>{e}</div>)}</div>
                                 </div>
-
                                 <div className="space-y-4">
                                     <div><label className="text-xs font-bold text-gray-500 uppercase">Título</label><input className="track-input" value={cardData.titulo} onChange={e => setCardData({...cardData, titulo: e.target.value})} /></div>
                                     <div><label className="text-xs font-bold text-gray-500 uppercase">Versículo</label><textarea className="track-input" rows="2" value={cardData.versiculo} onChange={e => setCardData({...cardData, versiculo: e.target.value})}></textarea><input className="track-input mt-2" placeholder="Referência" value={cardData.referencia} onChange={e => setCardData({...cardData, referencia: e.target.value})} /></div>
@@ -658,172 +682,588 @@
                                 <div style={{height:'100px'}}></div>
                             </div>
                         )}
-
                         {activeScreen === 'preview' && (
                             <div className="animate-fadeIn pb-24">
-                                <div className="top-nav-bar">
-                                    <button className="btn-back" onClick={() => setActiveScreen('editor')}><i className="fas fa-arrow-left"></i> Voltar</button>
-                                    <button className="btn-inspire" onClick={gerarAleatorio}><i className="fas fa-random"></i> Surpreenda-me</button>
-                                </div>
-
-                                <div className="slider-box">
-                                    <div className="slider-row">
-                                        <div className="slider-wrapper"><span className="slider-label">Tamanho</span><input type="range" min="12" max="32" value={cardData.fontSize} onChange={e => setCardData({...cardData, fontSize: e.target.value})} /></div>
-                                        <div className="slider-wrapper"><span className="slider-label">Opacidade</span><input type="range" min="0" max="100" value={cardData.opacity} onChange={e => setCardData({...cardData, opacity: e.target.value})} /></div>
-                                    </div>
-                                    <div className="slider-wrapper"><span className="slider-label">Blur Fundo</span><input type="range" min="0" max="10" value={cardData.blur} onChange={e => setCardData({...cardData, blur: e.target.value})} /></div>
-                                </div>
-
+                                <div className="top-nav-bar"><button className="btn-back" onClick={() => setActiveScreen('editor')}><i className="fas fa-arrow-left"></i> Voltar</button><button className="btn-inspire" onClick={gerarAleatorio}><i className="fas fa-random"></i> Surpreenda-me</button></div>
+                                <div className="slider-box"><div className="slider-row"><div className="slider-wrapper"><span className="slider-label">Tamanho</span><input type="range" min="12" max="32" value={cardData.fontSize} onChange={e => setCardData({...cardData, fontSize: e.target.value})} /></div><div className="slider-wrapper"><span className="slider-label">Opacidade</span><input type="range" min="0" max="100" value={cardData.opacity} onChange={e => setCardData({...cardData, opacity: e.target.value})} /></div></div><div className="slider-wrapper"><span className="slider-label">Blur Fundo</span><input type="range" min="0" max="10" value={cardData.blur} onChange={e => setCardData({...cardData, blur: e.target.value})} /></div></div>
                                 <div className="preview-container-3d" id="card-container-3d">
-                                    <div id="card-capture" className={`card-preview-wrapper ${cardData.themeClass} ${cardData.frameClass} ${cardData.fontClass} ${cardData.formatClass} ${cardData.isBw ? 'filter-bw' : ''} ${cardData.align}`}
-                                        style={{ backgroundImage: cardData.bgImage ? `url(${cardData.bgImage})` : '', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                                    <div id="card-capture" className={`card-preview-wrapper ${cardData.themeClass} ${cardData.frameClass} ${cardData.fontClass} ${cardData.formatClass} ${cardData.isBw ? 'filter-bw' : ''} ${cardData.align}`} style={{ backgroundImage: cardData.bgImage ? `url(${cardData.bgImage})` : '', backgroundSize: 'cover', backgroundPosition: 'center' }}>
                                         <div className={`card-sticker draggable-item ${cardData.sticker ? 'visible' : ''}`}>{cardData.sticker}</div>
                                         <div className={`card-overlay ${cardData.dim || cardData.bgImage ? 'dimmer-heavy' : ''}`} style={{backdropFilter: `blur(${cardData.blur}px)`}}></div>
                                         <div className="card-content-layer" style={{fontSize: `${cardData.fontSize}px`}}>
                                             <div className="pv-title draggable-item">{cardData.titulo}</div>
                                             <div className="pv-ref draggable-item">{cardData.referencia}</div>
                                             <div className="pv-verse draggable-item">"{cardData.versiculo}"</div>
-                                            <div className="pv-msg draggable-item" style={{backgroundColor: `rgba(255,255,255, ${cardData.opacity/100})`}}>
-                                                {/* Lógica Simples de Typewriter */}
-                                                {cardData.mensagem}
-                                                {isTypewriter && <span className="cursor-blink">|</span>}
-                                            </div>
+                                            <div className="pv-msg draggable-item" style={{backgroundColor: `rgba(255,255,255, ${cardData.opacity/100})`}}>{cardData.mensagem}{isTypewriter && <span className="cursor-blink">|</span>}</div>
                                             <div className="pv-footer draggable-item"><i className="fas fa-heart text-red-500"></i> {cardData.autor} • {new Date().toLocaleDateString('pt-BR')}</div>
                                         </div>
-                                        <div className="music-overlay">
-                                            <div className="music-bar"><div className="music-progress"></div></div>
-                                            <div className="music-time"><span>1:34</span><span>3:45</span></div>
-                                            <div className="music-controls"><i className="fas fa-backward-step"></i><i className="fas fa-circle-play" style={{fontSize:'2.5rem'}}></i><i className="fas fa-forward-step"></i></div>
-                                        </div>
+                                        <div className="music-overlay"><div className="music-bar"><div className="music-progress"></div></div><div className="music-time"><span>1:34</span><span>3:45</span></div><div className="music-controls"><i className="fas fa-backward-step"></i><i className="fas fa-circle-play" style={{fontSize:'2.5rem'}}></i><i className="fas fa-forward-step"></i></div></div>
                                     </div>
                                 </div>
-
                                 <div className="format-bar">
                                     <div className={`fmt-btn ${cardData.formatClass==='fmt-feed'?'active':''}`} onClick={()=>setCardData({...cardData, formatClass:'fmt-feed'})}><i className="far fa-square"></i> Feed</div>
                                     <div className={`fmt-btn ${cardData.formatClass==='fmt-music'?'active':''}`} onClick={()=>{setCardData({...cardData, formatClass:'fmt-music'}); magicBg(); alert("Modo Música Ativado 🎵");}}><i className="fab fa-spotify"></i> Music</div>
                                     <div className={`fmt-btn ${cardData.formatClass==='fmt-story'?'active':''}`} onClick={()=>setCardData({...cardData, formatClass:'fmt-story'})}><i className="fas fa-mobile-alt"></i> Stories</div>
                                 </div>
-
-                                <div className="preview-controls">
-                                    <button className={`tool-btn ${cardData.frameClass === '' ? 'active' : ''}`} onClick={()=>setCardData({...cardData, frameClass: ''})}>🚫</button>
-                                    <button className="tool-btn" onClick={()=>setCardData({...cardData, frameClass: 'frame-white'})}>⬜</button>
-                                    <button className="tool-btn" onClick={()=>setCardData({...cardData, frameClass: 'frame-black'})}>⬛</button>
-                                    <button className="tool-btn" onClick={()=>setCardData({...cardData, frameClass: 'frame-gold'})}>👑</button>
-                                    <button className="tool-btn" onClick={()=>setCardData({...cardData, frameClass: 'frame-neon-pink'})}>🔮</button>
-                                    <button className="tool-btn" onClick={()=>setCardData({...cardData, frameClass: 'frame-polaroid-clean'})}>📸</button>
-                                </div>
-
+                                <div className="preview-controls"><button className={`tool-btn ${cardData.frameClass === '' ? 'active' : ''}`} onClick={()=>setCardData({...cardData, frameClass: ''})}>🚫</button><button className="tool-btn" onClick={()=>setCardData({...cardData, frameClass: 'frame-white'})}>⬜</button><button className="tool-btn" onClick={()=>setCardData({...cardData, frameClass: 'frame-black'})}>⬛</button><button className="tool-btn" onClick={()=>setCardData({...cardData, frameClass: 'frame-gold'})}>👑</button><button className="tool-btn" onClick={()=>setCardData({...cardData, frameClass: 'frame-neon-pink'})}>🔮</button><button className="tool-btn" onClick={()=>setCardData({...cardData, frameClass: 'frame-polaroid-clean'})}>📸</button></div>
                                 <div className="scroll-tools">
-                                    <div className="tool-row">
-                                        <button className="tool-btn" onClick={()=>setCardData({...cardData, sticker: ''})}><i className="fas fa-ban"></i></button>
-                                        <button className="tool-btn" onClick={()=>setCardData({...cardData, sticker: 'Bom Dia ☀️'})}>Bom Dia</button>
-                                        <button className="tool-btn" onClick={()=>setCardData({...cardData, sticker: 'Boa Noite 🌙'})}>Boa Noite</button>
-                                        <button className="tool-btn" onClick={()=>setCardData({...cardData, sticker: 'Gratidão 🙏'})}>Gratidão</button>
-                                        <button className="tool-btn" onClick={()=>setCardData({...cardData, sticker: 'Fé ✝️'})}>Fé</button>
-                                        <button className="tool-btn" onClick={()=>setCardData({...cardData, sticker: 'Versículo 📖'})}>Versículo</button>
-                                    </div>
-                                    <div className="tool-row">
-                                        <button className="tool-btn" onClick={()=>setCardData({...cardData, fontClass: 'font-hand'})}><i className="fas fa-font"></i> Fonte</button>
-                                        <button className="tool-btn" onClick={resetPositions}><i className="fas fa-sync-alt"></i> Reset</button>
-                                        <button className="tool-btn" onClick={()=>setIsTypewriter(!isTypewriter)}><i className="fas fa-keyboard"></i> Digitar</button>
-                                        <button className="tool-btn" onClick={()=>setCardData({...cardData, align: cardData.align==='align-left'?'align-center':'align-left'})}><i className="fas fa-align-center"></i> Alinhar</button>
-                                        <button className="tool-btn" onClick={()=>setCardData({...cardData, dim: !cardData.dim})}><i className="fas fa-adjust"></i> Sombra</button>
-                                        <button className="tool-btn" onClick={()=>setCardData({...cardData, isBw: !cardData.isBw})}>P&B</button>
-                                    </div>
+                                    <div className="tool-row"><button className="tool-btn" onClick={()=>setCardData({...cardData, sticker: ''})}><i className="fas fa-ban"></i></button><button className="tool-btn" onClick={()=>setCardData({...cardData, sticker: 'Bom Dia ☀️'})}>Bom Dia</button><button className="tool-btn" onClick={()=>setCardData({...cardData, sticker: 'Boa Noite 🌙'})}>Boa Noite</button><button className="tool-btn" onClick={()=>setCardData({...cardData, sticker: 'Gratidão 🙏'})}>Gratidão</button><button className="tool-btn" onClick={()=>setCardData({...cardData, sticker: 'Fé ✝️'})}>Fé</button><button className="tool-btn" onClick={()=>setCardData({...cardData, sticker: 'Versículo 📖'})}>Versículo</button></div>
+                                    <div className="tool-row"><button className="tool-btn" onClick={()=>setCardData({...cardData, fontClass: 'font-hand'})}><i className="fas fa-font"></i> Fonte</button><button className="tool-btn" onClick={resetPositions}><i className="fas fa-sync-alt"></i> Reset</button><button className="tool-btn" onClick={()=>setIsTypewriter(!isTypewriter)}><i className="fas fa-keyboard"></i> Digitar</button><button className="tool-btn" onClick={()=>setCardData({...cardData, align: cardData.align==='align-left'?'align-center':'align-left'})}><i className="fas fa-align-center"></i> Alinhar</button><button className="tool-btn" onClick={()=>setCardData({...cardData, dim: !cardData.dim})}><i className="fas fa-adjust"></i> Sombra</button><button className="tool-btn" onClick={()=>setCardData({...cardData, isBw: !cardData.isBw})}>P&B</button></div>
                                 </div>
-
-                                <div className="preview-controls">
-                                    <label className="theme-btn upload-btn"><i className="fas fa-camera"></i><input type="file" className="hidden" accept="image/*" onChange={handleBgUpload}/></label>
-                                    <button className="theme-btn magic-btn" onClick={magicBg}><i className="fas fa-wand-magic-sparkles"></i></button>
-                                    <div className="theme-btn t-clean active" onClick={()=>setCardData({...cardData, themeClass: 't-clean', bgImage: null})}></div>
-                                    <div className="theme-btn t-dark" onClick={()=>setCardData({...cardData, themeClass: 't-dark', bgImage: null})}></div>
-                                    <div className="theme-btn t-ocean" onClick={()=>setCardData({...cardData, themeClass: 't-ocean', bgImage: null})}></div>
-                                    <div className="theme-btn t-nature" onClick={()=>setCardData({...cardData, themeClass: 't-nature', bgImage: null})}></div>
-                                    <div className="theme-btn t-gold" onClick={()=>setCardData({...cardData, themeClass: 't-gold', bgImage: null})}></div>
-                                    <div className="theme-btn t-sunset" onClick={()=>setCardData({...cardData, themeClass: 't-sunset', bgImage: null})}></div>
-                                    <div className="theme-btn t-royal" onClick={()=>setCardData({...cardData, themeClass: 't-royal', bgImage: null})}></div>
-                                    <div className="theme-btn t-berry" onClick={()=>setCardData({...cardData, themeClass: 't-berry', bgImage: null})}></div>
-                                    <div className="theme-btn t-mint" onClick={()=>setCardData({...cardData, themeClass: 't-mint', bgImage: null})}></div>
-                                </div>
-
-                                <div className="actions-grid">
-                                    <button className="btn-action btn-audio" onClick={lerMensagem}><i className="fas fa-volume-up"></i> Ouvir</button>
-                                    <button className="btn-action btn-share" onClick={compartilhar}><i className="fab fa-whatsapp"></i> Enviar Zap</button>
-                                    <button className="btn-action btn-save" onClick={downloadImage}><i className="fas fa-download"></i> Salvar</button>
-                                    <button className="btn-action btn-copy" onClick={()=>{navigator.clipboard.writeText(cardData.mensagem); alert("Texto copiado!");}}><i className="fas fa-copy"></i> Copiar</button>
-                                </div>
+                                <div className="preview-controls"><label className="theme-btn upload-btn"><i className="fas fa-camera"></i><input type="file" className="hidden" accept="image/*" onChange={handleBgUpload}/></label><button className="theme-btn magic-btn" onClick={magicBg}><i className="fas fa-wand-magic-sparkles"></i></button><div className="theme-btn t-clean active" onClick={()=>setCardData({...cardData, themeClass: 't-clean', bgImage: null})}></div><div className="theme-btn t-dark" onClick={()=>setCardData({...cardData, themeClass: 't-dark', bgImage: null})}></div><div className="theme-btn t-ocean" onClick={()=>setCardData({...cardData, themeClass: 't-ocean', bgImage: null})}></div><div className="theme-btn t-nature" onClick={()=>setCardData({...cardData, themeClass: 't-nature', bgImage: null})}></div><div className="theme-btn t-gold" onClick={()=>setCardData({...cardData, themeClass: 't-gold', bgImage: null})}></div><div className="theme-btn t-sunset" onClick={()=>setCardData({...cardData, themeClass: 't-sunset', bgImage: null})}></div><div className="theme-btn t-royal" onClick={()=>setCardData({...cardData, themeClass: 't-royal', bgImage: null})}></div><div className="theme-btn t-berry" onClick={()=>setCardData({...cardData, themeClass: 't-berry', bgImage: null})}></div><div className="theme-btn t-mint" onClick={()=>setCardData({...cardData, themeClass: 't-mint', bgImage: null})}></div></div>
+                                <div className="actions-grid"><button className="btn-action btn-audio" onClick={lerMensagem}><i className="fas fa-volume-up"></i> Ouvir</button><button className="btn-action btn-share" onClick={compartilhar}><i className="fab fa-whatsapp"></i> Enviar Zap</button><button className="btn-action btn-save" onClick={downloadImage}><i className="fas fa-download"></i> Salvar</button><button className="btn-action btn-copy" onClick={()=>{navigator.clipboard.writeText(cardData.mensagem); alert("Texto copiado!");}}><i className="fas fa-copy"></i> Copiar</button></div>
                             </div>
                         )}
                     </div>
+                    <div className="studio-bottom-nav"><button className={`studio-nav-item ${activeScreen === 'editor' ? 'active' : ''}`} onClick={() => setActiveScreen('editor')}><i className="fas fa-pen"></i></button><button className={`studio-nav-item ${activeScreen === 'preview' ? 'active' : ''}`} onClick={() => setActiveScreen('preview')}><i className="fas fa-image"></i></button><button className="studio-nav-item" onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : 'light')}><i className={`fas fa-${themeMode === 'light' ? 'moon' : 'sun'}`}></i></button></div>
+                </div>
+            );
+        };
 
-                    <div className="studio-bottom-nav">
-                        <button className={`studio-nav-item ${activeScreen === 'editor' ? 'active' : ''}`} onClick={() => setActiveScreen('editor')}><i className="fas fa-pen"></i></button>
-                        <button className={`studio-nav-item ${activeScreen === 'preview' ? 'active' : ''}`} onClick={() => setActiveScreen('preview')}><i className="fas fa-image"></i></button>
-                        <button className="studio-nav-item" onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : 'light')}><i className={`fas fa-${themeMode === 'light' ? 'moon' : 'sun'}`}></i></button>
+        // --- COMPONENTE CALCULADORA FLUTUANTE ---
+        const DraggableCalculator = ({ onClose }) => {
+            const [position, setPosition] = useState({ x: window.innerWidth/2 - 130, y: 100 });
+            const [isDragging, setIsDragging] = useState(false);
+            const [rel, setRel] = useState({ x: 0, y: 0 });
+            const [display, setDisplay] = useState('0');
+            const [expression, setExpression] = useState('');
+
+            const handleMouseDown = (e) => {
+                if(e.target.closest('button')) return;
+                setIsDragging(true);
+                setRel({
+                    x: (e.pageX || e.touches[0].pageX) - position.x,
+                    y: (e.pageY || e.touches[0].pageY) - position.y
+                });
+            };
+
+            useEffect(() => {
+                const handleMouseMove = (e) => {
+                    if (!isDragging) return;
+                    e.preventDefault();
+                    const pageX = e.pageX || (e.touches ? e.touches[0].pageX : 0);
+                    const pageY = e.pageY || (e.touches ? e.touches[0].pageY : 0);
+                    setPosition({ x: pageX - rel.x, y: pageY - rel.y });
+                };
+                const handleMouseUp = () => setIsDragging(false);
+
+                if (isDragging) {
+                    window.addEventListener('mousemove', handleMouseMove);
+                    window.addEventListener('mouseup', handleMouseUp);
+                    window.addEventListener('touchmove', handleMouseMove, { passive: false });
+                    window.addEventListener('touchend', handleMouseUp);
+                }
+                return () => {
+                    window.removeEventListener('mousemove', handleMouseMove);
+                    window.removeEventListener('mouseup', handleMouseUp);
+                    window.removeEventListener('touchmove', handleMouseMove);
+                    window.removeEventListener('touchend', handleMouseUp);
+                };
+            }, [isDragging, rel]);
+
+            const handleBtnClick = (val) => {
+                if (val === 'C') { setDisplay('0'); setExpression(''); } 
+                else if (val === '=') {
+                    try {
+                        const result = eval(expression.replace(/x/g, '*').replace(/%/g, '/100'));
+                        setDisplay(String(result)); setExpression(String(result));
+                    } catch { setDisplay('Erro'); setExpression(''); }
+                } else {
+                    const nextExpr = (display === '0' || display === 'Erro' ? '' : expression) + val;
+                    setExpression(nextExpr); setDisplay(nextExpr);
+                }
+            };
+
+            const buttons = ['C', '(', ')', '/', '7', '8', '9', 'x', '4', '5', '6', '-', '1', '2', '3', '+', '0', '.', '%', '='];
+
+            return (
+                <div className="fixed z-[100] bg-gray-900 rounded-xl shadow-2xl overflow-hidden border border-gray-700" style={{ left: position.x, top: position.y, width: '260px', touchAction: 'none' }}>
+                    <div onMouseDown={handleMouseDown} onTouchStart={handleMouseDown} className="bg-gray-800 p-2 cursor-move flex justify-between items-center select-none">
+                        <span className="text-gray-400 text-xs font-bold flex items-center gap-2"><IconWrapper name="calculator" size={14}/> Calculadora</span>
+                        <button onClick={onClose} className="text-red-400 hover:text-red-200"><IconWrapper name="x" size={16}/></button>
+                    </div>
+                    <div className="p-4 bg-gray-900 text-right"><div className="text-3xl text-white font-mono truncate">{display}</div></div>
+                    <div className="grid grid-cols-4 gap-1 p-2 bg-gray-800">
+                        {buttons.map((btn, i) => (
+                            <button key={i} onClick={() => handleBtnClick(btn)} className={`p-3 rounded font-bold text-lg transition-colors ${btn === '=' ? 'bg-orange-500 text-white' : btn === 'C' ? 'bg-red-900 text-red-100' : ['/','x','-','+'].includes(btn) ? 'bg-gray-700 text-orange-400' : 'bg-gray-700 text-white'}`}>{btn}</button>
+                        ))}
                     </div>
                 </div>
             );
         };
 
-        function App() {
-            const [activeTab, setActiveTab] = useState('home');
-            const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-            const [showToast, setShowToast] = useState(false);
+        // --- GRÁFICO DE PIZZA ---
+        const SimplePieChart = ({ data, onSliceClick }) => {
+            const validData = data.filter(d => d.value > 0);
+            const total = validData.reduce((acc, item) => acc + item.value, 0);
+            if (total === 0) return <div className="text-center text-gray-400 p-4 text-sm">Sem dados para o gráfico</div>;
+            
+            let cumulativeAngle = 0;
+            return (
+                <div className="flex flex-col items-center bg-white p-6 rounded-xl shadow-lg border border-gray-100 mt-8 mb-8 no-print">
+                    <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2"><IconWrapper name="pie-chart" className="text-purple-500"/> Distribuição Financeira</h3>
+                    <div className="relative w-48 h-48">
+                        <svg viewBox="-1 -1 2 2" style={{ transform: 'rotate(-90deg)', width: '100%', height: '100%' }}>
+                            {validData.map((slice, index) => {
+                                const startAngle = cumulativeAngle;
+                                const sliceAngle = (slice.value / total) * 2 * Math.PI;
+                                cumulativeAngle += sliceAngle;
+                                const x1 = Math.cos(startAngle); const y1 = Math.sin(startAngle);
+                                const x2 = Math.cos(startAngle + sliceAngle); const y2 = Math.sin(startAngle + sliceAngle);
+                                const largeArcFlag = sliceAngle > Math.PI ? 1 : 0;
+                                const pathData = (validData.length === 1) ? `M 0 0 L ${x1} ${y1} A 1 1 0 1 1 ${x1} ${y1 - 0.0001} Z` : `M 0 0 L ${x1} ${y1} A 1 1 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+                                return <path key={index} d={pathData} fill={slice.color} stroke="white" strokeWidth="0.05" onClick={() => onSliceClick && onSliceClick(slice.label)} />;
+                            })}
+                        </svg>
+                    </div>
+                    <div className="mt-6 w-full grid grid-cols-1 gap-3">
+                        {data.map((item, i) => (
+                            <div key={i} className="flex items-center justify-between p-2 rounded bg-gray-50 cursor-pointer hover:bg-gray-100" onClick={() => onSliceClick && onSliceClick(item.label)}>
+                                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full" style={{backgroundColor: item.color}}></div><span className="text-gray-600 text-xs font-bold uppercase">{item.label}</span></div>
+                                <span className="font-bold text-gray-800 text-sm">R$ {item.value.toFixed(2)}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
 
-            // Estados Bíblia
+        // --- ABA FINANCEIRA INTEGRADA ---
+        const FinancialTab = () => {
+            const [view, setView] = useState('transactions'); 
+            const [showCalc, setShowCalc] = useState(false);
+            
+            const [financialEntries, setFinancialEntries] = usePersistentState('financialEntries_v4', []);
+            const [userAssets, setUserAssets] = usePersistentState('userAssets_v3', []);
+            const [userLoans, setUserLoans] = usePersistentState('userLoans_v3', []);
+            const [userCards, setUserCards] = usePersistentState('userCards_v3', []);
+            const [userInvestments, setUserInvestments] = usePersistentState('userInvestments_v1', []);
+            const [userDebts, setUserDebts] = usePersistentState('userDebts_v3', []); 
+            const [expandedCardId, setExpandedCardId] = useState(null);
+            const [historyFilter, setHistoryFilter] = useState('all'); 
+            
+            const [editingId, setEditingId] = useState(null); 
+            const [appPassword, setAppPassword] = usePersistentState('appPassword', ''); 
+            const [isLocked, setIsLocked] = useState(false); 
+            const [pinInput, setPinInput] = useState(''); 
+            const [newPasswordInput, setNewPasswordInput] = useState(''); 
+
+            const [finForm, setFinForm] = useState({ date: new Date().toISOString().split('T')[0], desc: '', value: '', type: 'expense', category: 'Outros', method: 'Dinheiro', installments: 1, cardId: '' });
+            const [assetForm, setAssetForm] = useState({ name: '', value: '' });
+            const [loanForm, setLoanForm] = useState({ name: '', desc: '', value: '', date: '' });
+            const [cardForm, setCardForm] = useState({ name: '', limit: '', dueDay: '' });
+            const [investmentForm, setInvestmentForm] = useState({ type: 'Poupança', name: '', value: '' });
+            const [debtForm, setDebtForm] = useState({ name: '', totalValue: '', installments: '', startDate: '', dueDay: '' });
+
+            useEffect(() => {
+                const savedPass = localStorage.getItem('appPassword');
+                if (savedPass && savedPass !== '""') setIsLocked(true);
+            }, []);
+
+            const summary = useMemo(() => {
+                const realizedEntries = financialEntries.filter(e => e.status === 'paid');
+                const income = realizedEntries.filter(e => e.type === 'income').reduce((acc, curr) => acc + curr.value, 0);
+                const expense = realizedEntries.filter(e => e.type === 'expense').reduce((acc, curr) => acc + curr.value, 0);
+                const pendingExpense = financialEntries.filter(e => e.status === 'pending' && e.type === 'expense').reduce((acc, curr) => acc + curr.value, 0);
+                return { income, expense, balance: income - expense, pendingExpense };
+            }, [financialEntries]);
+
+            const chartData = useMemo(() => {
+                const totalReceivable = userLoans.reduce((acc, curr) => acc + curr.value, 0);
+                const totalCardDebt = financialEntries.filter(e => e.method === 'Cartão Crédito' && e.type === 'expense' && e.status === 'pending').reduce((acc, curr) => acc + curr.value, 0);
+                return [
+                    { label: 'Saldo em Caixa', value: Math.max(0, summary.balance), color: '#10B981' }, 
+                    { label: 'A Receber', value: totalReceivable, color: '#F59E0B' }, 
+                    { label: 'Gasto c/ Cartão', value: totalCardDebt, color: '#EF4444' } 
+                ];
+            }, [userLoans, financialEntries, summary.balance]);
+
+            const handleUnlock = () => { if (pinInput === appPassword) { setIsLocked(false); setPinInput(''); } else { alert("Senha incorreta!"); setPinInput(''); } };
+            const handleSetPassword = () => { if (newPasswordInput.length < 4) return alert("Mínimo 4 dígitos."); setAppPassword(newPasswordInput); setNewPasswordInput(''); alert("Senha definida!"); };
+            const handleRemovePassword = () => { if (confirm("Remover proteção?")) { setAppPassword(''); alert("Senha removida."); } };
+            
+            const handlePieClick = (label) => {
+                if (label === 'Saldo em Caixa') setView('transactions');
+                else if (label === 'A Receber') setView('loans');
+                else if (label === 'Gasto c/ Cartão') setView('cards');
+            };
+
+            const getTotalCardUsage = (cardId) => financialEntries.filter(e => e.method === 'Cartão Crédito' && e.cardId === cardId && e.type === 'expense' && e.status === 'pending').reduce((acc, curr) => acc + curr.value, 0);
+            const getCurrentInvoiceValue = (cardId) => {
+                const now = new Date();
+                return financialEntries.filter(e => {
+                        if (e.method !== 'Cartão Crédito' || e.cardId !== cardId || e.type !== 'expense') return false;
+                        const [y, m, d] = e.date.split('-').map(Number);
+                        return (m - 1) === now.getMonth() && y === now.getFullYear();
+                    }).reduce((acc, curr) => acc + curr.value, 0);
+            };
+
+            const handleAddEntry = () => {
+                if (!finForm.desc || !finForm.value) return alert("Preencha descrição e valor.");
+                if (finForm.method === 'Cartão Crédito' && !finForm.cardId && userCards.length > 0) return alert("Selecione o cartão.");
+                const totalValue = parseFloat(finForm.value);
+
+                if (editingId) {
+                    if (!window.confirm("Confirma a alteração deste lançamento?")) return;
+                    setFinancialEntries(financialEntries.map(entry => {
+                        if (entry.id === editingId) {
+                            return { ...entry, date: finForm.date, desc: finForm.desc, value: totalValue, type: finForm.type, category: finForm.category, method: finForm.method, cardId: finForm.method === 'Cartão Crédito' ? finForm.cardId : null };
+                        }
+                        return entry;
+                    }));
+                    setEditingId(null); setFinForm({ ...finForm, desc: '', value: '', installments: 1 }); alert("Registo atualizado!"); return;
+                }
+
+                const numInstallments = parseInt(finForm.installments) || 1;
+                const installmentValue = totalValue / numInstallments;
+                const newEntries = [];
+                let startDate; 
+                
+                if (finForm.method === 'Cartão Crédito' && finForm.cardId) {
+                    const selectedCard = userCards.find(c => c.id === finForm.cardId);
+                    if (selectedCard && selectedCard.dueDay) {
+                        const dueDay = parseInt(selectedCard.dueDay);
+                        const [y, m, d] = finForm.date.split('-').map(Number);
+                        const purchaseDate = new Date(y, m - 1, d);
+                        let nextMonth = purchaseDate.getMonth() + 1;
+                        let year = purchaseDate.getFullYear();
+                        if (nextMonth > 11) { nextMonth = 0; year++; }
+                        startDate = new Date(year, nextMonth, dueDay);
+                    } else { const [y, m, d] = finForm.date.split('-').map(Number); startDate = new Date(y, m - 1, d); startDate.setMonth(startDate.getMonth() + 1); }
+                } else { const [y, m, d] = finForm.date.split('-').map(Number); startDate = new Date(y, m - 1, d); }
+
+                for (let i = 0; i < numInstallments; i++) {
+                    const entryDate = new Date(startDate);
+                    if (['Cartão Crédito', 'Carnê/Boleto'].includes(finForm.method) || i > 0) entryDate.setMonth(startDate.getMonth() + i);
+                    
+                    const y = entryDate.getFullYear(); const m = String(entryDate.getMonth() + 1).padStart(2, '0'); const d = String(entryDate.getDate()).padStart(2, '0');
+                    let initialStatus = 'pending';
+                    const today = new Date(); today.setHours(0,0,0,0); const checkDate = new Date(entryDate); checkDate.setHours(0,0,0,0);
+                    if (['Dinheiro', 'Cartão Débito', 'Pix'].includes(finForm.method) && checkDate <= today) initialStatus = 'paid';
+
+                    newEntries.push({ id: Date.now() + i, date: `${y}-${m}-${d}`, desc: numInstallments > 1 ? `${finForm.desc} (${i + 1}/${numInstallments})` : finForm.desc, value: installmentValue, type: finForm.type, category: finForm.category, method: finForm.method, cardId: finForm.method === 'Cartão Crédito' ? finForm.cardId : null, status: initialStatus });
+                }
+                setFinancialEntries([...newEntries, ...financialEntries]); setFinForm({ ...finForm, desc: '', value: '', installments: 1 }); alert("Lançamento(s) adicionado(s) ao Fluxo!");
+            };
+
+            const handleEditEntry = (entry) => { setEditingId(entry.id); setFinForm({ date: entry.date, desc: entry.desc, value: entry.value, type: entry.type, category: entry.category, method: entry.method, installments: 1, cardId: entry.cardId || '' }); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+            const cancelEdit = () => { setEditingId(null); setFinForm({ ...finForm, desc: '', value: '', installments: 1 }); };
+            const handleAddAsset = () => { if (!assetForm.name || !assetForm.value) return alert("Preencha campos."); setUserAssets([...userAssets, { id: Date.now(), ...assetForm, value: parseFloat(assetForm.value) }]); setAssetForm({ name: '', value: '' }); };
+            const handleAddLoan = () => {
+                if (!loanForm.name || !loanForm.value || !loanForm.date) return alert("Preencha todos os campos.");
+                const newLoanId = Date.now().toString(); const loanValue = parseFloat(loanForm.value);
+                const newLoan = { id: newLoanId, ...loanForm, value: loanValue };
+                const newEntry = { id: Date.now() + 1, date: loanForm.date, desc: `Recebimento: ${loanForm.name} - ${loanForm.desc}`, value: loanValue, type: 'income', category: 'Empréstimos', method: 'Dinheiro', status: 'pending', loanId: newLoanId };
+                setUserLoans([...userLoans, newLoan]); setFinancialEntries([newEntry, ...financialEntries]); setLoanForm({ name: '', desc: '', value: '', date: '' }); alert("Registrado!");
+            };
+            const handleAddCard = () => { if (!cardForm.name || !cardForm.limit || !cardForm.dueDay) return alert("Preencha campos."); setUserCards([...userCards, { id: Date.now().toString(), ...cardForm, limit: parseFloat(cardForm.limit), dueDay: cardForm.dueDay }]); setCardForm({ name: '', limit: '', dueDay: '' }); };
+            const handleAddInvestment = () => { if (!investmentForm.name || !investmentForm.value) return alert("Preencha campos."); setUserInvestments([...userInvestments, { id: Date.now(), ...investmentForm, value: parseFloat(investmentForm.value) }]); setInvestmentForm({ type: 'Poupança', name: '', value: '' }); };
+            const handleAddDebt = () => {
+                if (!debtForm.name || !debtForm.totalValue || !debtForm.installments || !debtForm.dueDay) return alert("Preencha todos os campos.");
+                const newDebtId = Date.now().toString(); const installments = parseInt(debtForm.installments); const totalValue = parseFloat(debtForm.totalValue); const installmentValue = totalValue / installments; const dueDay = parseInt(debtForm.dueDay);
+                const today = new Date(); let startMonth = today.getMonth(); let startYear = today.getFullYear();
+                if (today.getDate() >= dueDay) { startMonth++; if(startMonth > 11) { startMonth = 0; startYear++; } }
+                const debtStartDate = new Date(startYear, startMonth, dueDay); const newEntries = [];
+                for (let i = 0; i < installments; i++) {
+                    const entryDate = new Date(debtStartDate); entryDate.setMonth(debtStartDate.getMonth() + i);
+                    const y = entryDate.getFullYear(); const m = String(entryDate.getMonth() + 1).padStart(2, '0'); const d = String(entryDate.getDate()).padStart(2, '0');
+                    newEntries.push({ id: Date.now() + i, date: `${y}-${m}-${d}`, desc: `${debtForm.name} (${i + 1}/${installments})`, value: installmentValue, type: 'expense', category: 'Dívida/Financ.', method: 'Carnê/Boleto', status: 'pending', debtId: newDebtId });
+                }
+                setUserDebts([...userDebts, { id: newDebtId, ...debtForm, totalValue: totalValue, installments: installments }]);
+                setFinancialEntries([...newEntries, ...financialEntries]); setDebtForm({ name: '', totalValue: '', installments: '', startDate: '', dueDay: '' }); alert("Dívida cadastrada!");
+            };
+
+            const deleteItem = (id, list, setList) => { if(confirm("Excluir item?")) setList(list.filter(i => i.id !== id)); };
+            const handleTrashClick = (entry) => {
+                if (entry.status === 'paid') { if (confirm("Ocultar item do histórico? O valor continuará no Saldo.")) setFinancialEntries(financialEntries.map(e => e.id === entry.id ? { ...e, hidden: true } : e)); } 
+                else { if (confirm("Excluir lançamento pendente permanentemente?")) setFinancialEntries(financialEntries.filter(e => e.id !== entry.id)); }
+            };
+            const deleteHiddenItem = (id) => { if(confirm("Tem certeza? Isso apagará este item definitivamente e ALTERARÁ o seu Saldo.")) setFinancialEntries(financialEntries.filter(e => e.id !== id)); };
+            const clearHiddenItems = () => { if(confirm(`Tem certeza? Isso apagará todos itens ocultos e ALTERARÁ o seu Saldo.`)) setFinancialEntries(financialEntries.filter(e => !e.hidden)); };
+            const deleteDebt = (id) => { if(confirm("Apagar dívida e todas as parcelas pendentes?")) { setUserDebts(userDebts.filter(d => d.id !== id)); setFinancialEntries(financialEntries.filter(e => !(e.debtId === id && e.status === 'pending'))); } };
+            const deleteLoan = (id) => { if(confirm("Apagar registro em 'Receber' e remover a entrada pendente do Fluxo?")) { setUserLoans(userLoans.filter(l => l.id !== id)); setFinancialEntries(financialEntries.filter(e => !(e.loanId === id && e.status === 'pending'))); } };
+            const toggleEntryStatus = (id) => { setFinancialEntries(financialEntries.map(entry => { if (entry.id === id) return { ...entry, status: entry.status === 'paid' ? 'pending' : 'paid' }; return entry; })); };
+            const getCardName = (cardId) => { const card = userCards.find(c => c.id === cardId); return card ? card.name : 'Cartão Excluído'; };
+            const toggleCardDetails = (cardId) => { setExpandedCardId(expandedCardId === cardId ? null : cardId); };
+            const isOverdue = (dateStr) => { if (!dateStr) return false; const [y, m, d] = dateStr.split('-').map(Number); const date = new Date(y, m-1, d); const today = new Date(); today.setHours(0,0,0,0); return date < today; };
+            const getDebtProgress = (debtId) => { const debtEntries = financialEntries.filter(e => e.debtId === debtId); const paidCount = debtEntries.filter(e => e.status === 'paid').length; return { paid: paidCount, total: debtEntries.length > 0 ? debtEntries.length : 1 }; };
+
+            const filteredEntries = useMemo(() => {
+                return financialEntries.filter(entry => { if (entry.hidden) return false; if (historyFilter === 'all') return true; if (historyFilter === 'paid') return entry.status === 'paid'; if (historyFilter === 'pending') return entry.status === 'pending'; return true; });
+            }, [financialEntries, historyFilter]);
+
+            if (isLocked) {
+                return ( <div className="min-h-[50vh] flex flex-col items-center justify-center p-4 animate-fadeIn"> <div className="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center"> <div className="mb-6 text-yellow-400"><IconWrapper name="lock" size={64} /></div> <h2 className="text-2xl font-bold mb-2 text-white">Agenda Bloqueada</h2> <p className="text-gray-400 mb-6 text-sm">Proteção Ativa.</p> <input type="password" value={pinInput} onChange={(e) => setPinInput(e.target.value)} className="w-full p-4 text-center text-2xl bg-gray-700 rounded-lg border border-gray-600 text-white mb-4 tracking-widest outline-none focus:border-yellow-500 transition-colors" placeholder="****" maxLength="6" inputMode="numeric" /> <button onClick={handleUnlock} className="w-full bg-yellow-500 text-gray-900 font-bold py-3 rounded-lg hover:bg-yellow-400 transition-transform active:scale-95">Desbloquear</button> </div> </div> );
+            }
+
+            return (
+                <div className="bg-gray-100 min-h-screen pb-20">
+                    {showCalc && <DraggableCalculator onClose={() => setShowCalc(false)} />}
+                    <div className="bg-white shadow px-4 pt-4 pb-2 sticky top-0 z-40">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="font-bold text-lg text-gray-800 flex items-center gap-2"><IconWrapper name="dollar-sign" className="text-green-600"/> Financeiro</h2>
+                            <div className="flex gap-2">
+                                <button onClick={() => setView('settings')} className="p-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-600"><IconWrapper name="lock" size={18} /></button>
+                                <button onClick={() => setView('statement')} className="p-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-600"><IconWrapper name="file-text" size={18}/></button>
+                                <button onClick={() => setShowCalc(!showCalc)} className={`p-2 rounded hover:bg-gray-300 text-gray-600 ${showCalc ? 'bg-red-100 text-red-600' : 'bg-gray-200'}`}><IconWrapper name="calculator" size={18}/></button>
+                            </div>
+                        </div>
+                        <div className="flex space-x-1 overflow-x-auto pb-2" style={{scrollbarWidth:'none'}}>
+                            <button onClick={() => setView('transactions')} className={`flex-1 py-2 px-4 rounded-lg text-sm font-bold whitespace-nowrap ${view === 'transactions' ? 'bg-red-100 text-red-800' : 'text-gray-500 hover:bg-gray-50'}`}>Fluxo</button>
+                            <button onClick={() => setView('cards')} className={`flex-1 py-2 px-4 rounded-lg text-sm font-bold whitespace-nowrap ${view === 'cards' ? 'bg-purple-100 text-purple-800' : 'text-gray-500 hover:bg-gray-50'}`}>Cartões</button>
+                            <button onClick={() => setView('investments')} className={`flex-1 py-2 px-4 rounded-lg text-sm font-bold whitespace-nowrap ${view === 'investments' ? 'bg-teal-100 text-teal-800' : 'text-gray-500 hover:bg-gray-50'}`}>Invest.</button>
+                            <button onClick={() => setView('debts')} className={`flex-1 py-2 px-4 rounded-lg text-sm font-bold whitespace-nowrap ${view === 'debts' ? 'bg-indigo-100 text-indigo-800' : 'text-gray-500 hover:bg-gray-50'}`}>Dívidas</button>
+                            <button onClick={() => setView('assets')} className={`flex-1 py-2 px-4 rounded-lg text-sm font-bold whitespace-nowrap ${view === 'assets' ? 'bg-blue-100 text-blue-800' : 'text-gray-500 hover:bg-gray-50'}`}>Bens</button>
+                            <button onClick={() => setView('loans')} className={`flex-1 py-2 px-4 rounded-lg text-sm font-bold whitespace-nowrap ${view === 'loans' ? 'bg-orange-100 text-orange-800' : 'text-gray-500 hover:bg-gray-50'}`}>Receber</button>
+                        </div>
+                    </div>
+
+                    <div className="p-4 animate-fadeIn">
+                        {view === 'statement' && (
+                            <div className="bg-white p-6 rounded-xl shadow-lg">
+                                <div className="flex justify-between items-center mb-6 border-b pb-4">
+                                    <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2"><IconWrapper name="file-text" className="text-red-800"/> Extrato</h2>
+                                </div>
+                                <div className="mb-6 bg-green-50 p-4 rounded-lg border border-green-200">
+                                    <p className="text-sm text-green-800 font-bold uppercase">Total Pago</p>
+                                    <p className="text-3xl font-bold text-green-700">R$ {financialEntries.filter(e => e.status === 'paid' && e.type === 'expense').reduce((acc, curr) => acc + curr.value, 0).toFixed(2)}</p>
+                                </div>
+                                <div className="space-y-2">
+                                    {financialEntries.filter(e => e.status === 'paid' && e.type === 'expense').sort((a,b) => new Date(b.date) - new Date(a.date)).map(entry => (
+                                        <div key={entry.id} className="flex justify-between p-3 bg-gray-50 rounded border-b border-gray-100">
+                                            <div>
+                                                <div className="text-sm font-bold text-gray-800">{entry.desc}</div>
+                                                <div className="text-xs text-gray-500">{new Date(entry.date).toLocaleDateString('pt-BR')} • {entry.category}</div>
+                                            </div>
+                                            <div className="font-bold text-red-600">- R$ {entry.value.toFixed(2)}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {view === 'settings' && (
+                            <div className="space-y-6">
+                                <div className="bg-white p-6 rounded-xl shadow border border-gray-100 text-center">
+                                    <div className="mb-4 text-gray-600"><IconWrapper name="lock" size={48} className="mx-auto text-gray-400"/></div>
+                                    <h3 className="font-bold text-xl text-gray-800 mb-6">Segurança</h3>
+                                    {appPassword ? (
+                                        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                                            <p className="text-green-700 font-bold mb-4">✓ Proteção Ativa</p>
+                                            <button onClick={handleRemovePassword} className="w-full bg-red-500 text-white py-2 rounded font-bold hover:bg-red-600">Remover Senha</button>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <input type="password" placeholder="Nova Senha (mín. 4)" className="w-full p-3 border rounded-lg text-center text-lg tracking-widest bg-gray-50" value={newPasswordInput} onChange={(e) => setNewPasswordInput(e.target.value)} inputMode="numeric"/>
+                                            <button onClick={handleSetPassword} className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700">Ativar Proteção</button>
+                                        </div>
+                                    )}
+                                    {financialEntries.filter(e => e.hidden).length > 0 && (
+                                        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 mt-6 text-left">
+                                            <h4 className="font-bold text-orange-800 mb-2 flex items-center gap-2"><IconWrapper name="trash-2" size={16}/> Histórico Oculto</h4>
+                                            <p className="text-sm text-orange-700 mb-3">Existem <strong>{financialEntries.filter(e => e.hidden).length}</strong> itens ocultos somando no Saldo.</p>
+                                            <ul className="mt-3 space-y-2 max-h-60 overflow-y-auto mb-4">
+                                                {financialEntries.filter(e => e.hidden).map(entry => (
+                                                    <li key={entry.id} className="flex justify-between items-center bg-white p-2 rounded border border-orange-100 shadow-sm">
+                                                        <div><div className="font-bold text-gray-700 text-xs">{entry.desc}</div><div className="text-[10px] text-gray-500">R$ {entry.value.toFixed(2)}</div></div>
+                                                        <button onClick={() => deleteHiddenItem(entry.id)} className="text-red-500 text-xs font-bold px-2 py-1 border border-red-200 rounded bg-red-50">Apagar</button>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                            <button onClick={clearHiddenItems} className="w-full bg-orange-600 text-white py-2 rounded font-bold hover:bg-orange-700 text-sm">Limpar Tudo Definitivamente</button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {view === 'transactions' && (
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-3 gap-2 text-center">
+                                    <div className="bg-green-100 p-3 rounded-xl border border-green-200">
+                                        <div className="text-[10px] font-bold text-green-700 uppercase tracking-wide">Entradas</div>
+                                        <div className="text-sm font-bold text-green-800">R$ {summary.income.toFixed(2)}</div>
+                                    </div>
+                                    <div className="bg-red-100 p-3 rounded-xl border border-red-200">
+                                        <div className="text-[10px] font-bold text-red-700 uppercase tracking-wide">Saídas</div>
+                                        <div className="text-sm font-bold text-red-800">R$ {summary.expense.toFixed(2)}</div>
+                                    </div>
+                                    <div className={`p-3 rounded-xl border-l-4 shadow-sm bg-white ${summary.balance >= 0 ? 'border-green-500' : 'border-red-500'}`}>
+                                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Saldo</div>
+                                        <div className={`text-sm font-bold ${summary.balance >= 0 ? 'text-gray-800' : 'text-red-600'}`}>R$ {summary.balance.toFixed(2)}</div>
+                                    </div>
+                                </div>
+                                {summary.pendingExpense > 0 && <div className="bg-yellow-50 p-2 rounded border border-yellow-200 text-center text-xs text-yellow-700 font-bold">A Pagar (Pendente): R$ {summary.pendingExpense.toFixed(2)}</div>}
+
+                                <div className="bg-white p-4 rounded-xl shadow border border-gray-100">
+                                    <h3 className="font-bold text-gray-700 mb-3 text-sm flex justify-between items-center">{editingId ? 'Editar' : 'Nova Movimentação'}{editingId && <button onClick={cancelEdit} className="text-xs text-red-500 underline">Cancelar</button>}</h3>
+                                    <div className="space-y-3">
+                                        <div className="grid grid-cols-2 gap-3"><input type="date" className="w-full p-2 border rounded text-sm bg-gray-50" value={finForm.date} onChange={e => setFinForm({...finForm, date: e.target.value})} /><input type="number" placeholder="Valor (R$)" className="w-full p-2 border rounded text-sm bg-gray-50" value={finForm.value} onChange={e => setFinForm({...finForm, value: e.target.value})} /></div>
+                                        <input type="text" placeholder="Descrição" className="w-full p-2 border rounded text-sm bg-gray-50" value={finForm.desc} onChange={e => setFinForm({...finForm, desc: e.target.value})} />
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <select className="w-full p-2 border rounded text-sm bg-gray-50" value={finForm.category} onChange={e => setFinForm({...finForm, category: e.target.value})}><option>Outros</option><option>Dízimo</option><option>Oferta</option><option>Alimentação</option><option>Contas</option><option>Transporte</option><option>Saúde</option><option>Lazer</option><option>Salário</option></select>
+                                            <select className="w-full p-2 border rounded text-sm bg-gray-50" value={finForm.method} onChange={e => setFinForm({...finForm, method: e.target.value})}><option>Dinheiro</option><option>Cartão Crédito</option><option>Cartão Débito</option><option>Pix</option><option>Carnê/Boleto</option></select>
+                                        </div>
+                                        {finForm.method === 'Cartão Crédito' && (
+                                            <div className="bg-yellow-50 p-3 rounded space-y-2">
+                                                <div className="flex items-center gap-2"><span className="text-xs font-bold text-yellow-800">Cartão:</span><select className="w-full p-1 border rounded text-sm" value={finForm.cardId} onChange={e => setFinForm({...finForm, cardId: e.target.value})}><option value="">Selecione...</option>{userCards.map(card => <option key={card.id} value={card.id}>{card.name}</option>)}</select></div>
+                                                <div className="flex items-center gap-2"><span className="text-xs font-bold text-yellow-800">Parcelas:</span><input type="number" min="1" max="48" className="w-16 p-1 border rounded text-sm" value={finForm.installments} onChange={e => setFinForm({...finForm, installments: e.target.value})} /></div>
+                                            </div>
+                                        )}
+                                        {finForm.method === 'Carnê/Boleto' && !editingId && (<div className="bg-blue-50 p-3 rounded space-y-2"><div className="flex items-center gap-2"><span className="text-xs font-bold text-blue-800">Parcelas:</span><input type="number" min="1" max="48" className="w-16 p-1 border rounded text-sm" value={finForm.installments} onChange={e => setFinForm({...finForm, installments: e.target.value})} /></div></div>)}
+                                        <div className="flex gap-2 pt-2">
+                                            <button onClick={() => setFinForm({...finForm, type: 'income'})} className={`flex-1 py-3 rounded text-sm font-bold tracking-wide shadow-lg transition transform hover:scale-105 ${finForm.type === 'income' ? 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-emerald-500/40' : 'bg-gray-100 text-gray-400'}`}>Receita</button>
+                                            <button onClick={() => setFinForm({...finForm, type: 'expense'})} className={`flex-1 py-3 rounded text-sm font-bold tracking-wide shadow-lg transition transform hover:scale-105 ${finForm.type === 'expense' ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/40' : 'bg-gray-100 text-gray-400'}`}>Despesa</button>
+                                        </div>
+                                        <button onClick={handleAddEntry} className="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white py-4 rounded-lg font-bold shadow-lg shadow-red-500/40 mt-3 flex justify-center items-center gap-2 text-base tracking-wide transform hover:scale-[1.02] transition-all"><IconWrapper name={editingId ? 'edit-2' : 'plus'}/> {editingId ? 'ATUALIZAR' : 'ADICIONAR'}</button>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white rounded-xl shadow overflow-hidden">
+                                    <div className="flex justify-between items-center bg-gray-50 px-4 py-2">
+                                        <span className="font-bold text-xs text-gray-500 uppercase">Histórico</span>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setHistoryFilter('all')} className={`text-[10px] font-bold px-2 py-1 rounded ${historyFilter === 'all' ? 'bg-gray-200' : 'text-gray-400'}`}>Todos</button>
+                                            <button onClick={() => setHistoryFilter('pending')} className={`text-[10px] font-bold px-2 py-1 rounded ${historyFilter === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'text-gray-400'}`}>Pendentes</button>
+                                            <button onClick={() => setHistoryFilter('paid')} className={`text-[10px] font-bold px-2 py-1 rounded ${historyFilter === 'paid' ? 'bg-green-100 text-green-700' : 'text-gray-400'}`}>Pagos</button>
+                                        </div>
+                                    </div>
+                                    <ul className="divide-y divide-gray-100">
+                                        {filteredEntries.length === 0 ? <li className="p-4 text-center text-gray-400 text-sm">Sem registos visíveis.</li> : 
+                                        filteredEntries.sort((a,b) => new Date(a.date) - new Date(b.date)).map(entry => (
+                                            <li key={entry.id} className={`p-4 flex justify-between items-center ${entry.status === 'paid' ? 'bg-white opacity-75' : 'bg-white'}`}>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2"><span className={`font-bold ${entry.status === 'paid' ? 'text-gray-500 line-through' : 'text-gray-800'}`}>{entry.desc}</span><span className="text-[10px] px-2 py-0.5 bg-gray-100 rounded text-gray-500">{entry.category}</span></div>
+                                                    <div className="text-xs text-gray-400 mt-1 flex flex-wrap items-center gap-1">{new Date(entry.date).toLocaleDateString('pt-BR')} • {entry.method} {entry.method === 'Cartão Crédito' && entry.cardId && (<span className="bg-purple-100 text-purple-700 px-1 rounded border border-purple-200 text-[10px]">{getCardName(entry.cardId)}</span>)} {isOverdue(entry.date) && entry.status !== 'paid' && entry.type === 'expense' && <span className="text-red-500 font-bold ml-1 bg-red-100 px-1 rounded">Vencido</span>}</div>
+                                                </div>
+                                                <div className="text-right flex flex-col items-end gap-2">
+                                                    <div className={`font-bold ${entry.type === 'income' ? 'text-green-600' : 'text-red-600'} ${entry.status === 'pending' ? '' : 'opacity-50'}`}>{entry.type === 'income' ? '+' : '-'} {parseFloat(entry.value).toFixed(2)}</div>
+                                                    <div className="flex gap-2">
+                                                        <button onClick={() => handleEditEntry(entry)} className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-200 text-gray-400 hover:bg-blue-50 hover:text-blue-500 transition-all"><IconWrapper name="edit-2" size={14}/></button>
+                                                        <button onClick={() => toggleEntryStatus(entry.id)} className={`w-8 h-8 flex items-center justify-center rounded-full border transition-all ${entry.status === 'paid' ? 'bg-green-500 border-green-600 text-white' : 'bg-white border-gray-300 text-gray-300'}`}><IconWrapper name="check" size={16} /></button>
+                                                        <button onClick={() => handleTrashClick(entry)} className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-200 text-gray-300 hover:bg-red-50 hover:text-red-500 transition-all"><IconWrapper name="trash-2" size={14}/></button>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                                <SimplePieChart data={chartData} onSliceClick={handlePieClick} />
+                            </div>
+                        )}
+
+                        {view === 'cards' && (
+                            <div className="space-y-6">
+                                <div className="bg-white p-4 rounded-xl shadow"><h3 className="font-bold text-purple-700 mb-3 text-sm flex items-center gap-2"><IconWrapper name="credit-card"/> Novo Cartão</h3><div className="flex gap-2 mb-2"><input type="text" placeholder="Nome" className="flex-1 p-2 border rounded text-sm" value={cardForm.name} onChange={e => setCardForm({...cardForm, name: e.target.value})} /><input type="number" placeholder="Limite" className="w-24 p-2 border rounded text-sm" value={cardForm.limit} onChange={e => setCardForm({...cardForm, limit: e.target.value})} /><input type="number" placeholder="Dia Venc." min="1" max="31" className="w-20 p-2 border rounded text-sm" value={cardForm.dueDay} onChange={e => setCardForm({...cardForm, dueDay: e.target.value})} /></div><button onClick={handleAddCard} className="w-full bg-purple-600 text-white py-2 rounded font-bold hover:bg-purple-700">Adicionar Cartão</button></div>
+                                <div className="space-y-4">{userCards.map(card => {
+                                    const totalUsed = getTotalCardUsage(card.id); const currentInvoice = getCurrentInvoiceValue(card.id); const available = card.limit - totalUsed; const percentUsed = Math.min(100, (totalUsed / card.limit) * 100); const cardEntries = financialEntries.filter(e => e.cardId === card.id && e.status === 'pending').sort((a,b) => new Date(a.date) - new Date(b.date));
+                                    return (
+                                        <div key={card.id} className="bg-white rounded-xl shadow-lg overflow-hidden transition-all">
+                                            <div onClick={() => toggleCardDetails(card.id)} className="bg-gradient-to-r from-gray-800 to-gray-700 p-5 text-white relative cursor-pointer hover:opacity-95">
+                                                <div className="flex justify-between items-start mb-4"><div><h4 className="font-bold text-lg">{card.name}</h4><span className="text-xs text-gray-400">Vence dia {card.dueDay}</span></div><IconWrapper name="credit-card" className="text-gray-500 opacity-50" size={32}/></div>
+                                                <div className="grid grid-cols-2 gap-4 text-sm mb-4"><div><div className="text-xs text-gray-400">Fatura Atual (Mês)</div><div className="font-bold text-red-300">R$ {currentInvoice.toFixed(2)}</div></div><div className="text-right"><div className="text-xs text-gray-400">Disponível</div><div className="font-bold text-green-300">R$ {available.toFixed(2)}</div></div></div>
+                                                <div className="w-full bg-gray-600 h-2 rounded-full overflow-hidden mb-2"><div className={`h-full ${percentUsed > 90 ? 'bg-red-500' : 'bg-green-500'}`} style={{width: `${percentUsed}%`}}></div></div>
+                                                <button onClick={(e) => { e.stopPropagation(); deleteItem(card.id, userCards, setUserCards); }} className="absolute top-2 right-2 text-gray-500 hover:text-red-400"><IconWrapper name="trash-2" size={16}/></button>
+                                                <div className="text-center text-[10px] text-gray-400 mt-1">{expandedCardId === card.id ? '▲ Ocultar Detalhes' : '▼ Ver Parcelas e Fatura'}</div>
+                                            </div>
+                                            {expandedCardId === card.id && (
+                                                <div className="bg-gray-50 p-4 border-t border-gray-200 animate-fadeIn">
+                                                    <h5 className="font-bold text-gray-500 text-xs uppercase mb-3">Parcelas a Vencer (Fatura Aberta e Futuras)</h5>
+                                                    {cardEntries.length === 0 ? <p className="text-center text-sm text-gray-400">Nenhuma compra pendente neste cartão.</p> : 
+                                                    <ul className="space-y-2">{cardEntries.map(entry => (<li key={entry.id} className="flex justify-between items-center bg-white p-3 rounded border border-gray-100 shadow-sm"><div><div className="font-bold text-gray-800 text-sm">{entry.desc}</div><div className="text-xs text-gray-500">{new Date(entry.date).toLocaleDateString('pt-BR')} • {entry.category}</div></div><div className="font-bold text-red-600 text-sm">R$ {entry.value.toFixed(2)}</div></li>))}</ul>}
+                                                    <div className="mt-4 pt-2 border-t border-gray-200 text-right"><span className="text-xs font-bold text-gray-500 uppercase mr-2">Total Pendente:</span><span className="font-bold text-gray-800">R$ {cardEntries.reduce((acc, curr) => acc + curr.value, 0).toFixed(2)}</span></div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}</div>
+                            </div>
+                        )}
+
+                        {view === 'debts' && (
+                            <div className="space-y-6">
+                                <div className="bg-indigo-600 p-6 rounded-2xl shadow-lg text-white text-center"><div className="text-xs font-bold uppercase opacity-80 mb-1">Total Dívidas Longas</div><div className="text-3xl font-bold">R$ {userDebts.reduce((acc, curr) => acc + (curr.totalValue - (curr.totalValue/curr.installments * (getDebtProgress(curr.id).paid))), 0).toFixed(2)}</div></div>
+                                <div className="bg-white p-4 rounded-xl shadow border border-indigo-100">
+                                    <h3 className="font-bold text-gray-700 mb-3 text-sm flex items-center gap-2"><IconWrapper name="briefcase"/> Nova Dívida/Financiamento</h3>
+                                    <div className="grid grid-cols-1 gap-3">
+                                        <input type="text" placeholder="Nome (Ex: Casa)" className="w-full p-2 border rounded text-sm bg-gray-50" value={debtForm.name} onChange={e => setDebtForm({...debtForm, name: e.target.value})} />
+                                        <div className="flex gap-2"><input type="number" placeholder="Valor Total" className="flex-1 p-2 border rounded text-sm" value={debtForm.totalValue} onChange={e => setDebtForm({...debtForm, totalValue: e.target.value})} /><input type="number" placeholder="Parcelas" className="w-24 p-2 border rounded text-sm" value={debtForm.installments} onChange={e => setDebtForm({...debtForm, installments: e.target.value})} /></div>
+                                        <div className="flex gap-2"><div className="flex-1"><label className="block text-[10px] font-bold text-gray-400 mb-1">Dia Vencimento</label><input type="number" min="1" max="31" className="w-full p-2 border rounded text-sm bg-gray-50" value={debtForm.dueDay} onChange={e => setDebtForm({...debtForm, dueDay: e.target.value})} placeholder="Dia" /></div><div className="flex-1 flex items-end"><button onClick={handleAddDebt} className="w-full bg-indigo-600 text-white py-2 rounded font-bold hover:bg-indigo-700">Salvar</button></div></div>
+                                    </div>
+                                </div>
+                                <div className="space-y-4">{userDebts.map(debt => {
+                                    const { paid, total } = getDebtProgress(debt.id); const remaining = debt.totalValue - ((debt.totalValue/debt.installments) * paid); const progress = (paid / debt.installments) * 100;
+                                    return (
+                                        <div key={debt.id} className="bg-white rounded-xl shadow-lg overflow-hidden border-l-4 border-indigo-500">
+                                            <div className="p-4">
+                                                <div className="flex justify-between items-start mb-2"><h4 className="font-bold text-indigo-900 text-lg">{debt.name}</h4><button onClick={() => deleteDebt(debt.id)} className="text-gray-400 hover:text-red-500"><IconWrapper name="trash-2" size={16}/></button></div>
+                                                <div className="flex justify-between text-xs text-gray-500 mb-2"><span>Pago: {paid}/{debt.installments}</span><span>Restante: R$ {remaining.toFixed(2)}</span></div>
+                                                <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden mb-3"><div className="h-full bg-indigo-500 transition-all duration-500" style={{width: `${progress}%`}}></div></div>
+                                                <p className="text-[10px] text-center text-gray-400">Gerencie as parcelas na aba FLUXO.</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}</div>
+                            </div>
+                        )}
+
+                        {view === 'investments' && (
+                            <div className="space-y-6">
+                                <div className="bg-teal-600 p-6 rounded-2xl shadow-lg text-white text-center"><div className="text-xs font-bold uppercase opacity-80 mb-1">Total Investido</div><div className="text-3xl font-bold">R$ {userInvestments.reduce((acc, curr) => acc + curr.value, 0).toFixed(2)}</div></div>
+                                <div className="bg-white p-4 rounded-xl shadow"><h3 className="font-bold text-gray-700 mb-3 text-sm">Adicionar Investimento</h3><div className="flex flex-col gap-3"><div className="flex gap-2"><select className="w-1/3 p-2 border rounded text-sm bg-gray-50" value={investmentForm.type} onChange={e => setInvestmentForm({...investmentForm, type: e.target.value})}><option>Poupança</option><option>CDB</option><option>Ações</option><option>Fundos</option><option>Outros</option></select><input type="text" placeholder="Nome" className="flex-1 p-2 border rounded text-sm" value={investmentForm.name} onChange={e => setInvestmentForm({...investmentForm, name: e.target.value})} /></div><div className="flex gap-2"><input type="number" placeholder="Valor (R$)" className="flex-1 p-2 border rounded text-sm" value={investmentForm.value} onChange={e => setInvestmentForm({...investmentForm, value: e.target.value})} /><button onClick={handleAddInvestment} className="w-24 bg-teal-600 text-white py-2 rounded font-bold hover:bg-teal-700">Salvar</button></div></div></div>
+                                <div className="space-y-3">{userInvestments.map(inv => (<div key={inv.id} className="bg-white p-4 rounded-xl shadow border-l-4 border-teal-500 flex justify-between items-center"><div><span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded uppercase">{inv.type}</span><div className="font-bold text-gray-800 mt-1">{inv.name}</div></div><div className="flex items-center gap-3"><span className="font-bold text-teal-700">R$ {inv.value.toFixed(2)}</span><button onClick={() => deleteItem(inv.id, userInvestments, setUserInvestments)} className="text-gray-400 hover:text-red-500"><IconWrapper name="trash-2" size={16}/></button></div></div>))}</div>
+                            </div>
+                        )}
+
+                        {view === 'assets' && (
+                            <div className="space-y-6">
+                                <div className="bg-blue-600 p-6 rounded-2xl shadow-lg text-white text-center"><div className="text-xs font-bold uppercase opacity-80 mb-1">Património Total</div><div className="text-3xl font-bold">R$ {userAssets.reduce((acc, curr) => acc + curr.value, 0).toFixed(2)}</div></div>
+                                <div className="bg-white p-4 rounded-xl shadow"><h3 className="font-bold text-gray-700 mb-3 text-sm">Adicionar Bem</h3><div className="flex gap-2 mb-2"><input type="text" placeholder="Nome" className="flex-1 p-2 border rounded text-sm" value={assetForm.name} onChange={e => setAssetForm({...assetForm, name: e.target.value})} /><input type="number" placeholder="Valor" className="w-24 p-2 border rounded text-sm" value={assetForm.value} onChange={e => setAssetForm({...assetForm, value: e.target.value})} /></div><button onClick={handleAddAsset} className="w-full bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">Salvar Bem</button></div>
+                                <div className="grid grid-cols-1 gap-3">{userAssets.map(asset => (<div key={asset.id} className="bg-white p-4 rounded-xl shadow flex justify-between items-center border-l-4 border-blue-500"><span className="font-bold text-gray-800">{asset.name}</span><div className="flex items-center gap-3"><span className="font-bold text-blue-600">R$ {asset.value.toFixed(2)}</span><button onClick={() => deleteItem(asset.id, userAssets, setUserAssets)} className="text-gray-400 hover:text-red-500"><IconWrapper name="trash-2" size={16}/></button></div></div>))}</div>
+                            </div>
+                        )}
+
+                        {view === 'loans' && (
+                            <div className="space-y-6">
+                                <div className="bg-orange-500 p-6 rounded-2xl shadow-lg text-white text-center"><div className="text-xs font-bold uppercase opacity-80 mb-1">Total a Receber</div><div className="text-3xl font-bold">R$ {userLoans.reduce((acc, curr) => acc + curr.value, 0).toFixed(2)}</div></div>
+                                <div className="bg-white p-4 rounded-xl shadow"><h3 className="font-bold text-gray-700 mb-3 text-sm">Registar Dívida</h3><input type="text" placeholder="Quem deve?" className="w-full p-2 border rounded text-sm mb-2" value={loanForm.name} onChange={e => setLoanForm({...loanForm, name: e.target.value})} /><div className="flex gap-2 mb-2"><input type="number" placeholder="Valor" className="flex-1 p-2 border rounded text-sm" value={loanForm.value} onChange={e => setLoanForm({...loanForm, value: e.target.value})} /><input type="date" className="w-32 p-2 border rounded text-sm" value={loanForm.date} onChange={e => setLoanForm({...loanForm, date: e.target.value})} /></div><input type="text" placeholder="Motivo" className="w-full p-2 border rounded text-sm mb-3" value={loanForm.desc} onChange={e => setLoanForm({...loanForm, desc: e.target.value})} /><button onClick={handleAddLoan} className="w-full bg-orange-500 text-white py-2 rounded font-bold hover:bg-orange-600">Adicionar</button></div>
+                                <div className="space-y-3">{userLoans.map(loan => (<div key={loan.id} className="bg-white p-4 rounded-xl shadow border-l-4 border-orange-400"><div className="flex justify-between items-start mb-1"><h4 className="font-bold text-gray-800">{loan.name}</h4><span className="font-bold text-orange-600">R$ {loan.value.toFixed(2)}</span></div><p className="text-sm text-gray-600">{loan.desc}</p><div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-100"><span className="text-xs text-gray-400">Previsto: {loan.date ? new Date(loan.date).toLocaleDateString('pt-BR') : 'Sem data'}</span><button onClick={() => deleteLoan(loan.id)} className="text-red-400 hover:text-red-600 text-xs font-bold flex items-center gap-1"><IconWrapper name="trash-2" size={12}/> Apagar</button></div></div>))}</div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- SISTEMA PRINCIPAL ISOLADO ---
+        const MainSystem = ({ activeTab, setActiveTab }) => {
+            const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+            
+            // Estados Bíblia e Jogos
             const [selectedBook, setSelectedBook] = usePersistentState('lastBook', 'Gênesis');
             const [selectedChapter, setSelectedChapter] = usePersistentState('lastChapter', 1);
             const [chapterContent, setChapterContent] = useState(null);
             const [loadingBible, setLoadingBible] = useState(false);
+            const [sermon, setSermon] = useState(null);
             const [isSpeaking, setIsSpeaking] = useState(false);
             const [highlights, setHighlights] = usePersistentState('bibleHighlights', {});
-
-            // Estados Jogos
-            const [gameMode, setGameMode] = useState('menu');
-            const [quizQuestions, setQuizQuestions] = useState([]);
-            const [quizIndex, setQuizIndex] = useState(0);
-            const [quizScore, setQuizScore] = useState(0);
-            const [quizActive, setQuizActive] = useState(false);
-            const [quizTimer, setQuizTimer] = useState(600);
-            const [showQuizResult, setShowQuizResult] = useState(false);
-
-            const [hangmanWord, setHangmanWord] = useState('');
-            const [hangmanCategory, setHangmanCategory] = useState('');
-            const [hangmanWrong, setHangmanWrong] = useState([]);
-            const [hangmanGuessed, setHangmanGuessed] = useState([]);
-            const [hangmanTimer, setHangmanTimer] = useState(120);
-            const [hangmanStatus, setHangmanStatus] = useState('playing');
-            const [hangmanStreak, setHangmanStreak] = usePersistentState('hangmanStreak', 0);
-            const [hintUsed, setHintUsed] = useState(false);
-
-            const [memoryCards, setMemoryCards] = useState([]);
-            const [memoryFlipped, setMemoryFlipped] = useState([]);
-            const [memoryMatched, setMemoryMatched] = useState([]);
-            const [memoryWin, setMemoryWin] = useState(false);
-
+            
+            // Estados Recuperados (Features Completas)
+            const [diaryEntries, setDiaryEntries] = usePersistentState('diary', {});
+            const [currentDate, setCurrentDate] = useState(new Date());
+            const [inputName, setInputName] = useState('');
+            const [nameResult, setNameResult] = useState(null);
+            const [isPlayingRadio, setIsPlayingRadio] = useState(false);
+            const audioRef = useRef(null);
+            
             // Estados QR Code
             const [qrUrl, setQrUrl] = usePersistentState('qrUrl', '');
-            const [qrWifiSsid, setQrWifiSsid] = usePersistentState('qrWifiSsid', '');
-            const [qrWifiPass, setQrWifiPass] = usePersistentState('qrWifiPass', '');
             const [qrPixKey, setQrPixKey] = usePersistentState('qrPixKey', '');
             const [qrPixName, setQrPixName] = usePersistentState('qrPixName', '');
             const [qrPixCity, setQrPixCity] = usePersistentState('qrPixCity', '');
             const [qrPixAmount, setQrPixAmount] = usePersistentState('qrPixAmount', '');
             const qrCodeRef = useRef(null);
 
-            // Estados Diário (Melhorados)
-            const [currentDate, setCurrentDate] = useState(new Date());
-            const [diaryEntries, setDiaryEntries] = usePersistentState('diary', {});
-            const [diarySearchTerm, setDiarySearchTerm] = useState('');
-
-            // Outros
-            const [isPlayingRadio, setIsPlayingRadio] = useState(false);
-            const audioRef = useRef(null);
-            const [inputName, setInputName] = usePersistentState('userInputName', '');
-            const [nameResult, setNameResult] = useState(null);
-            const [sermon, setSermon] = useState(null);
-
-            // --- BÍBLIA ---
             const fetchChapter = async (book, chapter) => {
                 setLoadingBible(true);
                 try {
@@ -833,109 +1273,23 @@
                 } catch { setChapterContent([{ verse: 1, text: "Erro na ligação." }]); }
                 finally { setLoadingBible(false); }
             };
+            
             useEffect(() => { if(activeTab === 'bible') fetchChapter(selectedBook, selectedChapter); }, [selectedBook, selectedChapter, activeTab]);
 
-            // --- QUIZ ---
-            const startQuiz = () => {
-                Tone.start();
-                const shuffled = [...bibleQuizDatabase].sort(() => 0.5 - Math.random());
-                setQuizQuestions(shuffled.slice(0, 10));
-                setQuizIndex(0); setQuizScore(0); setQuizTimer(600); setQuizActive(true); setShowQuizResult(false); setGameMode('quiz');
-            };
-
-            useEffect(() => {
-                let interval;
-                if (quizActive && quizTimer > 0) { interval = setInterval(() => setQuizTimer(p => p - 1), 1000); }
-                else if (quizTimer === 0 && quizActive) { setQuizActive(false); setShowQuizResult(true); playSoundEffect('lose'); }
-                return () => clearInterval(interval);
-            }, [quizActive, quizTimer]);
-
-            const handleQuizAnswer = (idx) => {
-                if (idx === quizQuestions[quizIndex].answer) { setQuizScore(s => s + 10); playSoundEffect('quiz_correct'); }
-                else { playSoundEffect('quiz_wrong'); }
-                if (quizIndex + 1 < 10) setQuizIndex(i => i + 1);
-                else { setQuizActive(false); setShowQuizResult(true); playSoundEffect('win'); }
-            };
-
-            // --- FORCA ---
-            const startHangman = () => {
-                Tone.start();
-                const cats = Object.keys(HANGMAN_CATEGORIES);
-                const cat = cats[Math.floor(Math.random() * cats.length)];
-                const word = HANGMAN_CATEGORIES[cat][Math.floor(Math.random() * HANGMAN_CATEGORIES[cat].length)];
-                setHangmanCategory(cat); setHangmanWord(word); setHangmanWrong([]); setHangmanGuessed([]); setHangmanTimer(120); setHangmanStatus('playing'); setHintUsed(false); setGameMode('hangman');
-            };
-
-            useEffect(() => {
-                let interval;
-                if (gameMode === 'hangman' && hangmanStatus === 'playing' && hangmanTimer > 0) { interval = setInterval(() => setHangmanTimer(p => p - 1), 1000); }
-                else if (hangmanTimer === 0 && hangmanStatus === 'playing') { 
-                    setHangmanStatus('lost'); 
-                    setHangmanStreak(0);
-                    playSoundEffect('lose'); 
-                }
-                return () => clearInterval(interval);
-            }, [gameMode, hangmanStatus, hangmanTimer]);
-
-            const handleHangmanGuess = (letter) => {
-                if (hangmanStatus !== 'playing' || hangmanGuessed.includes(letter) || hangmanWrong.includes(letter)) return;
-                if (hangmanWord.includes(letter)) {
-                    const next = [...hangmanGuessed, letter]; setHangmanGuessed(next);
-                    if (hangmanWord.split('').every(l => next.includes(l))) { 
-                        setHangmanStatus('won'); 
-                        setHangmanStreak(s => s + 1);
-                        playSoundEffect('win'); 
-                    }
-                    else playSoundEffect('hangman_correct');
-                } else {
-                    const nextWrong = [...hangmanWrong, letter]; setHangmanWrong(nextWrong);
-                    if (nextWrong.length >= 6) { 
-                        setHangmanStatus('lost'); 
-                        setHangmanStreak(0);
-                        playSoundEffect('lose'); 
-                    }
-                    else playSoundEffect('hangman_wrong');
+            // Funções de Áudio (Bíblia)
+            const toggleNarrator = () => {
+                if (isSpeaking) { window.speechSynthesis.cancel(); setIsSpeaking(false); }
+                else {
+                    if (!chapterContent) return;
+                    setIsSpeaking(true);
+                    const text = chapterContent.map(v => v.text).join(' ');
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utter.onend = () => setIsSpeaking(false);
+                    window.speechSynthesis.speak(utter);
                 }
             };
 
-            const useHint = () => {
-                if (hintUsed || hangmanStatus !== 'playing' || hangmanWrong.length >= 5) return;
-                const unrevealed = hangmanWord.split('').filter(l => !hangmanGuessed.includes(l));
-                if (unrevealed.length > 0) {
-                    const randomLetter = unrevealed[Math.floor(Math.random() * unrevealed.length)];
-                    setHangmanGuessed(prev => [...prev, randomLetter]);
-                    setHangmanWrong(prev => [...prev, 'HINT_' + Date.now()]);
-                    setHintUsed(true);
-                    playSoundEffect('hangman_correct');
-                }
-            };
-
-            // --- MEMÓRIA ---
-            const startMemory = () => {
-                Tone.start();
-                const emojis = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼'];
-                const shuffled = [...emojis, ...emojis].sort(() => Math.random() - 0.5).map((e, i) => ({ id: i, emoji: e }));
-                setMemoryCards(shuffled); setMemoryMatched([]); setMemoryFlipped([]); setMemoryWin(false); setGameMode('memory');
-            };
-
-            const handleMemoryClick = (card) => {
-                if (memoryFlipped.length === 2 || memoryMatched.includes(card.id) || memoryFlipped.find(c => c.id === card.id)) return;
-                const newFlipped = [...memoryFlipped, card];
-                setMemoryFlipped(newFlipped);
-                if (newFlipped.length === 2) {
-                    if (newFlipped[0].emoji === newFlipped[1].emoji) {
-                        setMemoryMatched([...memoryMatched, newFlipped[0].id, newFlipped[1].id]);
-                        setMemoryFlipped([]);
-                        if (memoryMatched.length + 2 === 16) { setMemoryWin(true); playSoundEffect('win'); }
-                        else playSoundEffect('correct');
-                    } else {
-                        playSoundEffect('wrong');
-                        setTimeout(() => setMemoryFlipped([]), 1000);
-                    }
-                }
-            };
-
-            // --- QR CODE ---
+            // Funções QR Code e PIX
             const gerarQR = (text) => {
                 if(!qrCodeRef.current) return;
                 qrCodeRef.current.innerHTML = '';
@@ -944,83 +1298,24 @@
 
             const handleGerarPix = () => {
                 if (!qrPixKey || !qrPixName || !qrPixCity) return alert("Preencha a chave, nome e cidade.");
-                const info = [formatarEMV('00', 'br.gov.bcb.pix'), formatarEMV('01', qrPixKey)].join('');
-                let brCode = [formatarEMV('00', '01'), formatarEMV('26', info), formatarEMV('52', '0000'), formatarEMV('53', '986')];
-                if(qrPixAmount) brCode.push(formatarEMV('54', parseFloat(qrPixAmount).toFixed(2)));
-                brCode.push(formatarEMV('58', 'BR'), formatarEMV('59', simplificarTexto(qrPixName).substring(0,25)), formatarEMV('60', simplificarTexto(qrPixCity).substring(0,15)), formatarEMV('62', formatarEMV('05', '***')), '6304');
+                const info = [window.formatarEMV('00', 'br.gov.bcb.pix'), window.formatarEMV('01', qrPixKey)].join('');
+                let brCode = [window.formatarEMV('00', '01'), window.formatarEMV('26', info), window.formatarEMV('52', '0000'), window.formatarEMV('53', '986')];
+                if(qrPixAmount) brCode.push(window.formatarEMV('54', parseFloat(qrPixAmount).toFixed(2)));
+                brCode.push(window.formatarEMV('58', 'BR'), window.formatarEMV('59', window.simplificarTexto(qrPixName).substring(0,25)), window.formatarEMV('60', window.simplificarTexto(qrPixCity).substring(0,15)), window.formatarEMV('62', window.formatarEMV('05', '***')), '6304');
                 const stringPIX = brCode.join('');
-                gerarQR(stringPIX + crc16(stringPIX));
-            };
-
-            // --- DIÁRIO MELHORADO ---
-            const exportDiary = () => {
-                let content = "DIÁRIO DE ORAÇÃO - SISTEMA VIDA\n\n";
-                Object.keys(diaryEntries).sort().forEach(date => {
-                    content += `DATA: ${date}\n-------------------\n${diaryEntries[date]}\n\n`;
-                });
-                const blob = new Blob([content], { type: "text/plain" });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `meu_diario_vida_${formatDateKey(new Date())}.txt`;
-                link.click();
-            };
-
-            const diarySearchResults = useMemo(() => {
-                if (!diarySearchTerm.trim()) return [];
-                return Object.keys(diaryEntries)
-                    .filter(date => diaryEntries[date].toLowerCase().includes(diarySearchTerm.toLowerCase()))
-                    .map(date => ({ date, text: diaryEntries[date] }))
-                    .sort((a,b) => b.date.localeCompare(a.date));
-            }, [diarySearchTerm, diaryEntries]);
-
-            // --- NARRADOR ---
-            const toggleNarrator = () => {
-                if (isSpeaking) { window.speechSynthesis.cancel(); setIsSpeaking(false); }
-                else {
-                    if (!chapterContent) return;
-                    setIsSpeaking(true);
-                    const text = chapterContent.map(v => v.text).join(' ');
-                    const utterance = new SpeechSynthesisUtterance(text);
-                    utterance.onend = () => setIsSpeaking(false);
-                    window.speechSynthesis.speak(utterance);
-                }
-            };
-
-            const copySermon = () => {
-                if (!sermon) return;
-                const text = `ESBOÇO: ${sermon.theme}\nREFERÊNCIA: ${sermon.ref}\n\nINTRODUÇÃO: ${sermon.intro}\n\nTÓPICOS:\n${sermon.points.map(p => `- ${p}`).join('\n')}\n\nCONCLUSÃO: ${sermon.conclusion}`;
-                const textArea = document.createElement("textarea");
-                textArea.value = text;
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-                setShowToast(true); setTimeout(()=>setShowToast(false), 2000);
+                gerarQR(stringPIX + window.crc16(stringPIX));
             };
 
             const BackButton = () => (
-                <button onClick={() => {setActiveTab('home'); setGameMode('menu');}} className="mb-4 flex items-center gap-2 text-red-800 font-bold hover:underline">
+                <button onClick={() => setActiveTab('home')} className="mb-4 flex items-center gap-2 text-red-800 font-bold hover:underline">
                     <IconWrapper name="arrow-left" size={20} /> Voltar ao Início
                 </button>
             );
 
-            const formatTime = (s) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
             const formatDateKey = (date) => date.toISOString().split('T')[0];
 
-            // Renderização do Estúdio Separada
-            if (activeTab === 'studio') {
-                return <CardStudio onExit={() => setActiveTab('home')} />;
-            }
-
             return (
-                <div className="min-h-screen flex flex-col font-inter">
-                    {showToast && (
-                        <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-2xl z-[100] animate-fadeIn flex items-center gap-2">
-                            <IconWrapper name="check-circle" size={20} /> <span>Guardado com sucesso!</span>
-                        </div>
-                    )}
-
+                <div className="min-h-screen flex flex-col font-inter bg-gray-50">
                     <header className="bg-red-800 text-white shadow-lg sticky top-0 z-50 no-print">
                         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
                             <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('home')}>
@@ -1075,7 +1370,7 @@
                                     <BackButton />
                                     <select value={selectedBook} onChange={e=>setSelectedBook(e.target.value)} className="w-full p-2 mb-4 border rounded shadow-sm font-bold text-red-900">{bibleBooks.map(b=><option key={b}>{b}</option>)}</select>
                                     <div className="grid grid-cols-5 gap-1">
-                                        {[...Array(50)].map((_,i)=><button key={i} onClick={()=>setSelectedChapter(i+1)} className={`p-2 text-xs rounded transition-colors ${selectedChapter===i+1?'bg-red-800 text-white':'bg-gray-200'}`}>{i+1}</button>)}
+                                        {[...Array(150)].map((_,i)=><button key={i} onClick={()=>setSelectedChapter(i+1)} className={`p-2 text-xs rounded transition-colors ${selectedChapter===i+1?'bg-red-800 text-white':'bg-gray-200'}`}>{i+1}</button>)}
                                     </div>
                                 </div>
                                 <div className="flex-1 p-8 overflow-y-auto font-serif text-lg leading-relaxed relative">
@@ -1095,323 +1390,125 @@
                             </div>
                         )}
 
-                        {activeTab === 'names' && (
-                            <div className="max-w-2xl mx-auto space-y-6 animate-fadeIn">
-                                <BackButton />
-                                <div className="bg-white p-8 rounded-xl shadow-lg text-center">
-                                    <h2 className="text-2xl font-bold mb-4 text-red-800">Significado dos Nomes</h2>
-                                    <div className="flex gap-2">
-                                        <input type="text" value={inputName} onChange={(e)=>setInputName(e.target.value)} className="flex-1 p-3 border rounded shadow-inner" placeholder="Ex: Lucas, Maria..." />
-                                        <button onClick={()=>{
-                                            const res = nameDatabase[inputName.toLowerCase().trim()];
-                                            setNameResult(res ? {name: inputName, meaning: res} : {name: inputName, meaning: "O Senhor conhece o seu nome e tem um propósito glorioso para a sua vida!"});
-                                        }} className="bg-red-800 text-white px-6 rounded font-bold hover:bg-red-900 transition-colors">Ver</button>
-                                    </div>
-                                </div>
-                                {nameResult && <div className="bg-white p-6 rounded-xl border-l-4 border-yellow-500 shadow animate-fadeIn"><h3 className="font-bold text-lg mb-2">{nameResult.name}</h3><p className="italic text-gray-700">{nameResult.meaning}</p></div>}
-                            </div>
-                        )}
-
-                        {activeTab === 'preaching' && (
-                            <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn">
-                                <BackButton />
-                                <div className="bg-white p-8 rounded-2xl shadow-lg text-center border-t-4 border-red-800">
-                                    <h2 className="text-2xl font-bold mb-4 text-red-800 flex items-center justify-center gap-2">
-                                        <IconWrapper name="megaphone" className="text-yellow-500" size={32}/> 
-                                        Sugestões para Pregação
-                                    </h2>
-                                    <button onClick={()=>setSermon(preachingDatabase[Math.floor(Math.random()*preachingDatabase.length)])} className="bg-red-800 text-white px-10 py-3 rounded-full font-bold shadow-xl hover:bg-red-900 flex items-center justify-center gap-3 mx-auto transition-transform active:scale-95">
-                                        <IconWrapper name="refresh-cw" size={20}/> Gerar Novo Esboço
-                                    </button>
-                                </div>
-
-                                {sermon && (
-                                    <div className="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 animate-fadeIn relative overflow-hidden">
-                                        <div className="absolute top-0 right-0 p-4">
-                                            <button onClick={copySermon} className="p-3 bg-gray-50 hover:bg-yellow-50 text-gray-400 hover:text-yellow-600 rounded-full transition-colors shadow-sm border border-gray-100" title="Copiar Esboço">
-                                                <IconWrapper name="copy" size={24}/>
-                                            </button>
-                                        </div>
-                                        <div className="mb-8 border-b border-gray-100 pb-4 text-center">
-                                            <h3 className="text-2xl font-bold text-red-900 mb-1">{sermon.theme}</h3>
-                                            <p className="text-sm font-bold text-yellow-600 tracking-widest uppercase">{sermon.ref}</p>
-                                        </div>
-                                        <div className="space-y-8">
-                                            <section>
-                                                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">Introdução</h4>
-                                                <p className="text-gray-700 italic leading-relaxed">{sermon.intro}</p>
-                                            </section>
-                                            <section>
-                                                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">Tópicos Principais</h4>
-                                                <ul className="space-y-4">
-                                                    {sermon.points.map((point, idx) => (
-                                                        <li key={idx} className="flex gap-4 items-start p-4 bg-gray-50 rounded-2xl border border-white">
-                                                            <span className="flex-shrink-0 w-8 h-8 rounded-full bg-red-800 text-white flex items-center justify-center font-bold text-sm">{idx + 1}</span>
-                                                            <p className="text-gray-800 font-medium pt-1">{point}</p>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </section>
-                                            <section className="bg-red-50 p-6 rounded-2xl border border-red-100">
-                                                <h4 className="text-xs font-bold text-red-800 uppercase tracking-widest mb-2">Conclusão</h4>
-                                                <p className="text-red-900 font-bold leading-relaxed">{sermon.conclusion}</p>
-                                            </section>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
                         {activeTab === 'games' && (
-                            <div className="max-w-4xl mx-auto bg-white p-8 rounded-2xl shadow animate-fadeIn text-center min-h-[500px]">
+                            <div className="max-w-4xl mx-auto bg-white p-8 rounded-2xl shadow animate-fadeIn text-center">
                                 <BackButton />
-                                {gameMode === 'menu' && (
-                                    <div className="grid md:grid-cols-3 gap-6 mt-8">
-                                        <div onClick={startQuiz} className="p-8 border-2 border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-50 transition-all group">
-                                            <div className="text-4xl mb-4 group-hover:scale-110 transition-all">📖</div>
-                                            <h3 className="font-bold text-gray-800">Quiz Bíblico</h3>
-                                            <p className="text-xs text-gray-400 mt-2">10 questões desafiadoras.</p>
-                                        </div>
-                                        <div onClick={startMemory} className="p-8 border-2 border-blue-200 rounded-xl cursor-pointer hover:bg-blue-50 transition-all group">
-                                            <div className="text-4xl mb-4 group-hover:scale-110 transition-all">🐶</div>
-                                            <h3 className="font-bold text-gray-800">Memória</h3>
-                                            <p className="text-xs text-gray-400 mt-2">Encontre os pares de animais.</p>
-                                        </div>
-                                        <div onClick={startHangman} className="p-8 border-2 border-green-200 rounded-xl cursor-pointer hover:bg-green-50 transition-all group">
-                                            <div className="text-4xl mb-4 group-hover:scale-110 transition-all">⚓</div>
-                                            <h3 className="font-bold text-gray-800">Forca</h3>
-                                            <p className="text-xs text-gray-400 mt-2">Adivinhe palavras bíblicas.</p>
-                                        </div>
+                                <h2 className="text-2xl font-bold mb-8 text-gray-800">Sala de Jogos</h2>
+                                <div className="grid md:grid-cols-3 gap-6">
+                                    <div className="p-8 border-2 border-yellow-200 rounded-xl hover:bg-yellow-50 cursor-pointer">
+                                        <div className="text-4xl mb-4">📖</div><h3 className="font-bold">Quiz Bíblico</h3>
                                     </div>
-                                )}
-
-                                {gameMode === 'quiz' && (
-                                    <div className="animate-fadeIn">
-                                        {!showQuizResult ? (
-                                            <div>
-                                                <div className="flex justify-between items-center mb-8 bg-gray-50 p-4 rounded-xl">
-                                                    <span className="text-red-600 font-bold">Tempo: {formatTime(quizTimer)}</span>
-                                                    <span className="text-gray-500 font-bold">Questão {quizIndex + 1}/10</span>
-                                                    <span className="text-yellow-600 font-bold">Pontos: {quizScore}</span>
-                                                </div>
-                                                <h3 className="text-2xl font-bold mb-8 px-4 font-serif">{quizQuestions[quizIndex]?.question}</h3>
-                                                <div className="grid gap-3 max-w-md mx-auto">
-                                                    {quizQuestions[quizIndex]?.options.map((opt, i) => (
-                                                        <button key={i} onClick={()=>handleQuizAnswer(i)} className="p-4 border-2 rounded-xl hover:bg-red-50 text-left font-medium transition-all hover:border-red-300 active:scale-95">{opt}</button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="py-12">
-                                                <h2 className="text-4xl font-bold text-red-800 mb-4">Parabéns!</h2>
-                                                <div className="text-6xl font-arcade text-yellow-600 mb-8">{quizScore} pts</div>
-                                                <button onClick={startQuiz} className="bg-red-800 text-white px-10 py-3 rounded-full font-bold shadow-lg">Jogar Novamente</button>
-                                            </div>
-                                        )}
+                                    <div className="p-8 border-2 border-blue-200 rounded-xl hover:bg-blue-50 cursor-pointer">
+                                        <div className="text-4xl mb-4">🐶</div><h3 className="font-bold">Memória</h3>
                                     </div>
-                                )}
-
-                                {gameMode === 'hangman' && (
-                                    <div className="animate-fadeIn relative">
-                                        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 font-bold bg-gray-50 p-4 rounded-2xl">
-                                            <div className="flex flex-col items-start">
-                                                <span className="text-blue-600 uppercase tracking-widest text-xs">CATEGORIA: {hangmanCategory}</span>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <IconWrapper name="zap" className="text-yellow-500" size={16}/>
-                                                    <span className="text-sm font-arcade text-gray-700">STREAK: {hangmanStreak}</span>
-                                                </div>
-                                            </div>
-                                            <span className={`text-2xl font-arcade ${hangmanTimer <= 10 ? 'text-red-600 animate-pulse' : 'text-gray-600'}`}>{formatTime(hangmanTimer)}</span>
-                                            <button 
-                                                onClick={useHint} 
-                                                disabled={hintUsed || hangmanStatus !== 'playing' || hangmanWrong.length >= 5}
-                                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${hintUsed ? 'bg-gray-200 text-gray-400' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 shadow-sm'}`}
-                                            >
-                                                <IconWrapper name="help-circle" size={16}/> PISTA
-                                            </button>
-                                        </div>
-                                        
-                                        <div className="flex flex-col md:flex-row items-center gap-12 mt-10">
-                                            <div className="flex-1 bg-white p-6 rounded-[2.5rem] shadow-inner border border-gray-100">
-                                                <svg className="w-56 h-56 mx-auto" viewBox="0 0 100 120">
-                                                    <line x1="10" y1="115" x2="90" y2="115" stroke="#4B5563" strokeWidth="6" strokeLinecap="round" />
-                                                    <line x1="30" y1="115" x2="30" y2="10" stroke="#4B5563" strokeWidth="6" strokeLinecap="round" />
-                                                    <line x1="30" y1="10" x2="75" y2="10" stroke="#4B5563" strokeWidth="6" strokeLinecap="round" />
-                                                    <line x1="75" y1="10" x2="75" y2="25" stroke="#4B5563" strokeWidth="2" />
-                                                    <circle cx="75" cy="35" r="10" className={`hangman-part ${hangmanWrong.length >= 1 ? 'opacity-100' : 'opacity-0'} ${hangmanStatus === 'lost' ? 'hangman-part-error' : ''}`} fill="none" stroke="#111827" />
-                                                    <line x1="75" y1="45" x2="75" y2="75" className={`hangman-part ${hangmanWrong.length >= 2 ? 'opacity-100' : 'opacity-0'} ${hangmanStatus === 'lost' ? 'hangman-part-error' : ''}`} stroke="#111827" />
-                                                    <line x1="75" y1="55" x2="60" y2="45" className={`hangman-part ${hangmanWrong.length >= 3 ? 'opacity-100' : 'opacity-0'} ${hangmanStatus === 'lost' ? 'hangman-part-error' : ''}`} stroke="#111827" />
-                                                    <line x1="75" y1="55" x2="90" y2="45" className={`hangman-part ${hangmanWrong.length >= 4 ? 'opacity-100' : 'opacity-0'} ${hangmanStatus === 'lost' ? 'hangman-part-error' : ''}`} stroke="#111827" />
-                                                    <line x1="75" y1="75" x2="60" y2="95" className={`hangman-part ${hangmanWrong.length >= 5 ? 'opacity-100' : 'opacity-0'} ${hangmanStatus === 'lost' ? 'hangman-part-error' : ''}`} stroke="#111827" />
-                                                    <line x1="75" y1="75" x2="90" y2="95" className={`hangman-part ${hangmanWrong.length >= 6 ? 'opacity-100' : 'opacity-0'} ${hangmanStatus === 'lost' ? 'hangman-part-error' : ''}`} stroke="#111827" />
-                                                </svg>
-                                            </div>
-                                            <div className="flex-1 space-y-12">
-                                                <div className="flex flex-wrap justify-center gap-3">
-                                                    {hangmanWord.split('').map((l, idx) => (
-                                                        <div key={idx} className={`w-10 h-12 md:w-12 md:h-14 flex items-center justify-center text-3xl font-arcade border-b-4 transition-all duration-500 rounded-t-lg ${hangmanGuessed.includes(l) ? 'border-green-500 text-green-600 bg-green-50' : 'border-gray-200 text-transparent bg-gray-50'}`}>
-                                                            {l}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                {hangmanStatus === 'playing' ? (
-                                                    <div className="grid grid-cols-7 md:grid-cols-9 gap-2 max-w-sm mx-auto p-4 bg-gray-50 rounded-3xl border border-gray-100">
-                                                        {'ABCDEFGHIJKLMNOPQRSTUVWXYZÇ'.split('').map(l => (
-                                                            <button key={l} onClick={()=>handleHangmanGuess(l)} disabled={hangmanGuessed.includes(l) || hangmanWrong.includes(l)} className={`w-9 h-9 md:w-10 md:h-10 border rounded-xl font-bold text-sm shadow-sm transition-all active:scale-90 ${hangmanGuessed.includes(l) ? 'bg-green-500 text-white' : hangmanWrong.includes(l) ? 'bg-red-100 text-red-300 opacity-50' : 'bg-white hover:bg-blue-50'}`}>{l}</button>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <div className={`p-8 rounded-[2rem] font-bold shadow-2xl ${hangmanStatus === 'won' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
-                                                        <p className="text-3xl mb-3">{hangmanStatus === 'won' ? 'BRILHANTE!' : 'PERDEU!'}</p>
-                                                        <p className="text-sm opacity-80 mb-6 underline font-arcade">{hangmanWord}</p>
-                                                        <button onClick={startHangman} className="bg-white text-gray-900 px-8 py-3 rounded-full font-bold shadow-lg hover:scale-105 flex items-center gap-2 mx-auto"><IconWrapper name="refresh-cw" size={18}/> Novo Jogo</button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {gameMode === 'memory' && (
-                                    <div className="animate-fadeIn">
-                                        {!memoryWin ? (
-                                            <div className="grid grid-cols-4 gap-4 max-w-sm mx-auto mt-6">
-                                                {memoryCards.map(card => (
-                                                    <div key={card.id} className={`memory-card h-24 w-full ${memoryFlipped.find(c=>c.id===card.id) || memoryMatched.includes(card.id) ? 'is-flipped' : ''}`} onClick={()=>handleMemoryClick(card)}>
-                                                        <div className="memory-card-inner"><div className="memory-card-back font-bold">?</div><div className="memory-card-front text-4xl">{card.emoji}</div></div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="py-12 text-blue-600 font-bold text-3xl">Venceu! 🎉<br/><button onClick={startMemory} className="mt-6 bg-blue-600 text-white px-10 py-3 rounded-full text-sm shadow-xl">Recomeçar</button></div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {activeTab === 'qrcode' && (
-                            <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn">
-                                <BackButton />
-                                <div className="grid md:grid-cols-2 gap-6">
-                                    <div className="bg-white p-6 rounded-2xl shadow border-t-4 border-red-800 space-y-4">
-                                        <h3 className="font-bold flex items-center gap-2 text-red-800"><IconWrapper name="book-open" size={18}/> Endereço Web</h3>
-                                        <input type="text" value={qrUrl} onChange={e=>setQrUrl(e.target.value)} placeholder="https://..." className="w-full p-3 border rounded shadow-inner" />
-                                        <button onClick={()=>gerarQR(qrUrl)} className="w-full bg-red-800 text-white py-3 rounded-xl font-bold hover:bg-red-900 shadow-md">Criar Código</button>
-                                    </div>
-                                    <div className="bg-white p-6 rounded-2xl shadow border-t-4 border-blue-600 space-y-4">
-                                        <h3 className="font-bold flex items-center gap-2 text-blue-800"><IconWrapper name="radio" size={18}/> Wi-Fi Direto</h3>
-                                        <div className="grid grid-cols-2 gap-2"><input type="text" value={qrWifiSsid} onChange={e=>setQrWifiSsid(e.target.value)} placeholder="Rede" className="p-2 border rounded" /><input type="password" value={qrWifiPass} onChange={e=>setQrWifiPass(e.target.value)} placeholder="Senha" className="p-2 border rounded" /></div>
-                                        <button onClick={()=>gerarQR(`WIFI:T:WPA;S:${qrWifiSsid};P:${qrWifiPass};;`)} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 shadow-md">Gerar Wi-Fi</button>
-                                    </div>
-                                    <div className="bg-white p-6 rounded-2xl shadow border-t-4 border-green-600 space-y-4 md:col-span-2">
-                                        <h3 className="font-bold flex items-center gap-2 text-green-800"><IconWrapper name="qr-code" size={18}/> Pagamento PIX (Brasil)</h3>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                            <input type="text" value={qrPixKey} onChange={e=>setQrPixKey(e.target.value)} placeholder="Chave" className="p-2 border rounded text-xs" /><input type="text" value={qrPixName} onChange={e=>setQrPixName(e.target.value)} placeholder="Nome" className="p-2 border rounded text-xs" /><input type="text" value={qrPixCity} onChange={e=>setQrPixCity(e.target.value)} placeholder="Cidade" className="p-2 border rounded text-xs" /><input type="number" value={qrPixAmount} onChange={e=>setQrPixAmount(e.target.value)} placeholder="Valor" className="p-2 border rounded text-xs" />
-                                        </div>
-                                        <button onClick={handleGerarPix} className="w-full bg-green-700 text-white py-3 rounded-xl font-bold hover:bg-green-800 shadow-md">Criar Código PIX</button>
+                                    <div className="p-8 border-2 border-green-200 rounded-xl hover:bg-green-50 cursor-pointer">
+                                        <div className="text-4xl mb-4">⚓</div><h3 className="font-bold">Forca</h3>
                                     </div>
                                 </div>
-                                <div className="bg-white p-12 rounded-3xl shadow-xl flex flex-col items-center border border-gray-50"><div ref={qrCodeRef} className="border-8 border-gray-50 p-4 bg-white shadow-inner rounded-xl"></div><p className="mt-6 text-[10px] text-gray-400 uppercase font-bold tracking-[0.2em]">Digitalize para usar</p></div>
                             </div>
                         )}
 
                         {activeTab === 'radio' && (
-                            <div className="max-w-xl mx-auto bg-gray-900 text-white p-12 rounded-[3rem] shadow-2xl text-center animate-fadeIn border border-gray-800">
-                                <BackButton /><div className="mb-12"><IconWrapper name="radio" size={100} className="text-yellow-400 mx-auto animate-pulse" /></div>
-                                <h2 className="text-3xl font-bold mb-3">Rádio Gospel</h2><p className="text-gray-400 text-sm mb-12 uppercase tracking-widest font-inter">Louvores e Adoração 24h</p>
+                            <div className="text-center p-12 bg-gray-900 text-white rounded-3xl animate-fadeIn">
+                                <BackButton />
+                                <div className="mb-12"><IconWrapper name="radio" size={100} className="text-yellow-400 mx-auto animate-pulse" /></div>
+                                <h2 className="text-3xl font-bold mb-3">Rádio Gospel</h2>
                                 <div className="flex justify-center items-end gap-1 mb-12 h-16">{isPlayingRadio ? [...Array(6)].map((_,i)=><div key={i} className="sound-bar" style={{animationDuration: `${0.4 + Math.random()}s`, width: '8px'}}></div>) : <div className="h-1 w-40 bg-gray-800 rounded-full"></div>}</div>
                                 <button onClick={()=>{if(isPlayingRadio) audioRef.current.pause(); else audioRef.current.play(); setIsPlayingRadio(!isPlayingRadio);}} className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto shadow-xl transition-all transform hover:scale-110 active:scale-95 ${isPlayingRadio?'bg-yellow-400 text-gray-900':'bg-red-600 text-white'}`}><IconWrapper name={isPlayingRadio ? 'square' : 'radio'} size={45} /></button>
                                 <audio ref={audioRef} src="https://live.hunter.fm/gospel_stream?ag=mp3" crossOrigin="anonymous"></audio>
                             </div>
                         )}
-
-                        {activeTab === 'notes' && (
-                            <div className="max-w-5xl mx-auto space-y-8 animate-fadeIn">
+                        
+                        {activeTab === 'preaching' && (
+                            <div className="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow animate-fadeIn">
                                 <BackButton />
-                                
-                                <div className="grid md:grid-cols-12 gap-8">
-                                    <div className="md:col-span-4 space-y-6">
-                                        <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
-                                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><IconWrapper name="search" size={14}/> Pesquisar Notas</h4>
-                                            <input 
-                                                type="text" 
-                                                value={diarySearchTerm} 
-                                                onChange={(e)=>setDiarySearchTerm(e.target.value)} 
-                                                placeholder="Palavra-chave..." 
-                                                className="w-full p-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-red-100 outline-none text-sm"
-                                            />
-                                        </div>
-
-                                        {diarySearchTerm && (
-                                            <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 max-h-[400px] overflow-y-auto space-y-4">
-                                                <h4 className="text-xs font-bold text-red-800 uppercase tracking-widest mb-2">Resultados ({diarySearchResults.length})</h4>
-                                                {diarySearchResults.map(res => (
-                                                    <div key={res.date} onClick={()=>{setCurrentDate(new Date(res.date)); setDiarySearchTerm('');}} className="p-3 bg-red-50 rounded-xl cursor-pointer hover:bg-red-100 transition-colors">
-                                                        <p className="text-[10px] font-bold text-red-800 mb-1">{new Date(res.date).toLocaleDateString('pt-PT')}</p>
-                                                        <p className="text-xs text-gray-600 line-clamp-2">{res.text}</p>
-                                                    </div>
-                                                ))}
-                                                {diarySearchResults.length === 0 && <p className="text-xs text-gray-400 italic">Nada encontrado.</p>}
-                                            </div>
-                                        )}
-
-                                        <div className="bg-gradient-to-br from-red-800 to-red-900 p-8 rounded-[2rem] text-white shadow-xl">
-                                            <h3 className="text-xl font-bold mb-2">Meu Legado</h3>
-                                            <p className="text-xs opacity-75 mb-6">Total de {Object.keys(diaryEntries).length} dias registados.</p>
-                                            <button onClick={exportDiary} className="w-full bg-white/10 hover:bg-white/20 p-4 rounded-2xl border border-white/20 font-bold text-sm transition-all flex items-center justify-center gap-3">
-                                                <IconWrapper name="download" size={18}/> Exportar Diário
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="md:col-span-8 bg-white p-10 rounded-[3rem] shadow-2xl space-y-8 border border-gray-100 relative">
-                                        <div className="flex justify-between items-center bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
-                                            <button onClick={()=>{const d=new Date(currentDate); d.setDate(d.getDate()-1); setCurrentDate(d);}} className="p-3 border rounded-full bg-white shadow-sm hover:bg-gray-100 transition-all active:scale-90"><IconWrapper name="chevron-left" size={24}/></button>
-                                            <div className="text-center">
-                                                <h3 className="font-bold text-red-900 text-xl capitalize">{currentDate.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
-                                                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-[0.2em] mt-2">Oração e Reflexão</p>
-                                            </div>
-                                            <button onClick={()=>{const d=new Date(currentDate); d.setDate(d.getDate()+1); setCurrentDate(d);}} className="p-3 border rounded-full bg-white shadow-sm hover:bg-gray-100 transition-all active:scale-90"><IconWrapper name="chevron-right" size={24}/></button>
-                                        </div>
-                                        
-                                        <div className="relative group">
-                                            <textarea 
-                                                value={diaryEntries[formatDateKey(currentDate)] || ""} 
-                                                onChange={(e)=>setDiaryEntries({...diaryEntries, [formatDateKey(currentDate)]: e.target.value})}
-                                                className="w-full h-[500px] p-10 border border-gray-100 rounded-[2.5rem] font-handwriting text-2xl focus:ring-8 focus:ring-red-50 outline-none resize-none shadow-inner leading-relaxed bg-[#fdfdfd] text-gray-700 placeholder-gray-300" 
-                                                placeholder="Querido Pai Celestial, no dia de hoje eu..."
-                                            ></textarea>
-                                            <div className="absolute bottom-6 right-8 text-[10px] font-bold text-gray-300 uppercase tracking-widest">
-                                                {(diaryEntries[formatDateKey(currentDate)] || "").length} caracteres
-                                            </div>
-                                        </div>
-
-                                        <div className="flex justify-between items-center px-4">
-                                            <p className="text-[10px] text-gray-400 italic">"Escreve a visão e torna-a bem legível..." Habacuque 2:2</p>
-                                            <button onClick={()=>{setShowToast(true); setTimeout(()=>setShowToast(false), 2000);}} className="bg-red-800 text-white px-10 py-3 rounded-full font-bold shadow-xl hover:bg-red-900 flex items-center gap-3 transition-all hover:scale-105 active:scale-95"><IconWrapper name="refresh-cw" size={18}/> Guardar Agora</button>
-                                        </div>
-                                    </div>
-                                </div>
+                                <h2 className="text-2xl font-bold text-center mb-6 text-red-800">Gerador de Pregação</h2>
+                                <button onClick={()=>setSermon(preachingDatabase[Math.floor(Math.random()*preachingDatabase.length)])} className="w-full bg-red-800 text-white py-3 rounded-xl font-bold mb-6">Gerar Esboço</button>
+                                {sermon && <div className="bg-gray-50 p-6 rounded-xl border border-gray-200"><h3 className="font-bold text-xl mb-2">{sermon.theme}</h3><p className="text-sm font-bold text-gray-500 uppercase mb-4">{sermon.ref}</p><div className="space-y-2">{sermon.points.map((p,i)=><p key={i}>• {p}</p>)}</div></div>}
                             </div>
                         )}
+                        
+                        {activeTab === 'qrcode' && (
+                            <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn">
+                                <BackButton />
+                                <div className="bg-white p-6 rounded-2xl shadow border-t-4 border-green-600 space-y-4">
+                                    <h3 className="font-bold flex items-center gap-2 text-green-800"><IconWrapper name="qr-code" size={18}/> Pagamento PIX (Brasil)</h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                        <input type="text" value={qrPixKey} onChange={e=>setQrPixKey(e.target.value)} placeholder="Chave" className="p-2 border rounded text-xs" />
+                                        <input type="text" value={qrPixName} onChange={e=>setQrPixName(e.target.value)} placeholder="Nome" className="p-2 border rounded text-xs" />
+                                        <input type="text" value={qrPixCity} onChange={e=>setQrPixCity(e.target.value)} placeholder="Cidade" className="p-2 border rounded text-xs" />
+                                        <input type="number" value={qrPixAmount} onChange={e=>setQrPixAmount(e.target.value)} placeholder="Valor" className="p-2 border rounded text-xs" />
+                                    </div>
+                                    <button onClick={handleGerarPix} className="w-full bg-green-700 text-white py-3 rounded-xl font-bold hover:bg-green-800 shadow-md">Criar Código PIX</button>
+                                </div>
+                                <div className="bg-white p-6 rounded-2xl shadow border-t-4 border-red-800 space-y-4">
+                                    <h3 className="font-bold flex items-center gap-2 text-red-800"><IconWrapper name="book-open" size={18}/> Link Web</h3>
+                                    <input type="text" value={qrUrl} onChange={e=>setQrUrl(e.target.value)} placeholder="https://..." className="w-full p-3 border rounded" />
+                                    <button onClick={()=>gerarQR(qrUrl)} className="w-full bg-red-800 text-white py-3 rounded-xl font-bold">Criar Código</button>
+                                </div>
+                                <div className="bg-white p-12 rounded-3xl shadow-xl flex flex-col items-center border border-gray-50"><div ref={qrCodeRef}></div></div>
+                            </div>
+                        )}
+
+                        {activeTab === 'names' && (
+                            <div className="text-center p-8 bg-white rounded-xl shadow animate-fadeIn">
+                                <BackButton />
+                                <h2 className="text-xl font-bold mb-4">Significado de Nomes</h2>
+                                <div className="flex gap-2 justify-center">
+                                    <input type="text" value={inputName} onChange={(e)=>setInputName(e.target.value)} placeholder="Digite um nome..." className="p-2 border rounded" />
+                                    <button onClick={()=>{const res = nameDatabase[inputName.toLowerCase().trim()]; setNameResult(res || "Nome abençoado.");}} className="bg-red-800 text-white px-4 rounded">Ver</button>
+                                </div>
+                                {nameResult && <p className="mt-4 font-bold text-lg text-red-800">{nameResult}</p>}
+                            </div>
+                        )}
+
+                        {activeTab === 'notes' && (
+                            <div className="bg-white p-10 rounded-[3rem] shadow-2xl space-y-8 border border-gray-100 relative animate-fadeIn">
+                                <BackButton />
+                                <div className="flex justify-between items-center bg-gray-50 p-6 rounded-[2rem]">
+                                    <button onClick={()=>{const d=new Date(currentDate); d.setDate(d.getDate()-1); setCurrentDate(d);}} className="p-3 border rounded-full bg-white"><IconWrapper name="chevron-left" size={24}/></button>
+                                    <h3 className="font-bold text-red-900 text-xl">{currentDate.toLocaleDateString('pt-PT')}</h3>
+                                    <button onClick={()=>{const d=new Date(currentDate); d.setDate(d.getDate()+1); setCurrentDate(d);}} className="p-3 border rounded-full bg-white"><IconWrapper name="chevron-right" size={24}/></button>
+                                </div>
+                                <textarea 
+                                    value={diaryEntries[formatDateKey(currentDate)] || ""} 
+                                    onChange={(e)=>setDiaryEntries({...diaryEntries, [formatDateKey(currentDate)]: e.target.value})}
+                                    className="w-full h-[300px] p-10 border border-gray-100 rounded-[2.5rem] font-handwriting text-2xl outline-none resize-none shadow-inner bg-[#fdfdfd]" 
+                                    placeholder="Querido Diário..."
+                                ></textarea>
+                            </div>
+                        )}
+
+                        {activeTab === 'financial' && (
+                            <div className="animate-fadeIn">
+                                <BackButton />
+                                <FinancialTab />
+                            </div>
+                        )}
+
                     </main>
 
-                    <footer className="bg-gray-900 text-gray-400 py-12 text-center border-t border-gray-800 mt-auto no-print">
-                        <div className="container mx-auto px-4">
-                            <p className="font-bold text-white mb-3 text-lg">Direitos Autorais &copy; Jânio Carlos P J</p>
-                            <p className="text-[10px] mb-8 opacity-40 tracking-[0.3em] uppercase font-bold font-inter">Configuração Profissional Atualizada</p>
-                            <a href="https://wa.me/5575998312170" target="_blank" className="inline-flex items-center gap-4 bg-green-600 text-white px-10 py-3 rounded-full font-bold text-sm shadow-[0_10px_25px_rgba(22,163,74,0.4)] hover:bg-green-700 transition-all transform hover:-translate-y-1">
-                                WhatsApp do Criador: +55 (75) 99831-2170
-                            </a>
-                        </div>
+                    <footer className="bg-gray-900 text-gray-400 py-8 text-center border-t border-gray-800 mt-auto no-print">
+                        <p className="font-bold text-white mb-2">Sistema Vida Completo</p>
+                        <p className="text-xs opacity-50">Integração v31.1</p>
                     </footer>
                 </div>
             );
+        };
+
+        // --- APP PRINCIPAL ---
+        function App() {
+            const [activeTab, setActiveTab] = useState('home');
+
+            if (activeTab === 'studio') {
+                return <CardStudio key="studio" onExit={() => setActiveTab('home')} />;
+            }
+
+            return <MainSystem key="main" activeTab={activeTab} setActiveTab={setActiveTab} />;
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<ErrorBoundary><App /></ErrorBoundary>);
+        root.render(<App />);
     </script>
 </body>
 </html>
