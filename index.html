@@ -14,30 +14,18 @@
         .sermon-text {
             font-family: 'Merriweather', serif;
         }
-        /* Loading Overlay */
-        #loading-overlay {
+        /* Modals */
+        .modal-overlay {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255, 255, 255, 0.8);
+            background: rgba(0, 0, 0, 0.5);
             z-index: 1000;
             justify-content: center;
             align-items: center;
-            flex-direction: column;
+            backdrop-filter: blur(2px);
         }
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #4f46e5;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
+        
         /* Estilos de Impressão */
         @media print {
             .no-print { display: none !important; }
@@ -54,7 +42,7 @@
                 font-size: 14pt;
             }
         }
-        /* Modo Púlpito (Alto Contraste e Fonte Grande) */
+        /* Modo Púlpito */
         .pulpit-mode {
             background-color: #111827 !important;
             color: #f3f4f6 !important;
@@ -76,11 +64,59 @@
 </head>
 <body id="app-body" class="text-slate-800 transition-colors duration-300">
 
-    <!-- Loading Overlay -->
-    <div id="loading-overlay">
-        <div class="spinner mb-4"></div>
-        <p class="text-indigo-700 font-bold text-lg">Criando esboço da pregação...</p>
-        <p class="text-slate-500 text-sm">Isso pode levar alguns segundos.</p>
+    <!-- Modal de Importação Simplificada (Manual) -->
+    <div id="import-modal" class="modal-overlay">
+        <div class="bg-white p-6 rounded-lg shadow-2xl max-w-2xl w-full mx-4 border-t-4 border-indigo-600 flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-600"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Gerador de Esboço Universal
+                </h3>
+                <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+
+            <div class="overflow-y-auto pr-2 space-y-6">
+                <!-- Passo 1 -->
+                <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+                    <h4 class="font-bold text-indigo-800 mb-2 flex items-center gap-2">
+                        <span class="bg-indigo-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">1</span>
+                        Copie o comando abaixo
+                    </h4>
+                    <p class="text-sm text-indigo-600 mb-2">Este comando instrui qualquer IA (ChatGPT, Gemini, Meta AI) a criar seu esboço.</p>
+                    <div class="relative">
+                        <textarea id="prompt-box" readonly class="w-full h-24 p-3 text-xs bg-white border border-indigo-200 rounded text-slate-600 font-mono resize-none focus:outline-none"></textarea>
+                        <button onclick="copyPrompt()" class="absolute top-2 right-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1 rounded shadow transition flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            Copiar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Passo 2 -->
+                <div class="text-center text-sm text-slate-500">
+                    <p>Cole o comando no <strong>ChatGPT</strong>, <strong>Gemini</strong> ou <strong>WhatsApp Meta AI</strong>.</p>
+                </div>
+
+                <!-- Passo 3 -->
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <h4 class="font-bold text-slate-700 mb-2 flex items-center gap-2">
+                        <span class="bg-slate-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">2</span>
+                        Cole a resposta da IA aqui
+                    </h4>
+                    <textarea id="json-input" placeholder="Cole aqui o texto que a Inteligência Artificial gerou..." class="w-full h-32 p-3 text-sm bg-white border border-slate-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none resize-none"></textarea>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button onclick="closeImportModal()" class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded text-sm font-medium">Cancelar</button>
+                <button onclick="processImport()" class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-bold shadow-md flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    Gerar Esboço Automaticamente
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Navegação -->
@@ -90,21 +126,24 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
                 <h1 class="text-xl font-bold">Planejador Homilético</h1>
             </div>
-            <div class="flex flex-wrap justify-center gap-2">
-                <button onclick="generateSermonAI()" class="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded transition text-sm font-bold shadow-md ring-2 ring-orange-400/50">
+            <div class="flex flex-wrap justify-center gap-2 items-center">
+                
+                <!-- Botão Mágico Simplificado -->
+                <button onclick="openImportModal()" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded transition text-sm font-bold shadow-md ring-2 ring-emerald-400/50">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-                    ✨ Gerar com IA
+                    Gerar com IA (Fácil)
                 </button>
-                <button onclick="togglePulpitMode()" class="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 rounded transition text-sm font-medium">
+
+                <button onclick="togglePulpitMode()" class="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 rounded transition text-sm font-medium" title="Modo Leitura">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>
-                    Modo Púlpito
+                    Púlpito
                 </button>
-                <button onclick="window.print()" class="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded transition text-sm font-medium">
+                <button onclick="window.print()" class="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded transition text-sm font-medium" title="Salvar PDF">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-                    Imprimir / PDF
+                    PDF
                 </button>
-                <button onclick="clearForm()" class="px-3 py-2 bg-red-600 hover:bg-red-700 rounded transition text-sm font-medium">
-                    Limpar
+                <button onclick="clearForm()" class="px-3 py-2 bg-red-600 hover:bg-red-700 rounded transition text-sm font-medium" title="Apagar Tudo">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                 </button>
             </div>
         </div>
@@ -204,95 +243,67 @@
     </main>
 
     <script>
-        const apiKey = ""; // API key will be injected by the environment
+        // --- FUNÇÕES DE IMPORTAÇÃO SIMPLIFICADA ---
 
-        // API Helper Function
-        async function callGemini(prompt) {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-            const payload = {
-                contents: [{ parts: [{ text: prompt }] }]
-            };
-
-            // Retry logic with exponential backoff
-            const maxRetries = 5;
-            let attempt = 0;
-            let delay = 1000;
-
-            while (attempt < maxRetries) {
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                    
-                    const data = await response.json();
-                    return data.candidates?.[0]?.content?.parts?.[0]?.text;
-                } catch (error) {
-                    console.error("API Attempt failed", error);
-                    attempt++;
-                    if (attempt >= maxRetries) throw error;
-                    await new Promise(r => setTimeout(r, delay));
-                    delay *= 2;
-                }
-            }
-        }
-
-        async function generateSermonAI() {
+        function openImportModal() {
             const title = document.getElementById('sermonTitle').value.trim();
             const bible = document.getElementById('bibleText').value.trim();
+            
+            // Gerar o prompt automaticamente com base no que o usuário já digitou (se houver)
+            let promptText = `Aja como um assistente para pastores. Crie um esboço de pregação estruturado em formato JSON.
+${title ? `TEMA: "${title}"` : 'TEMA: Escolha um tema bíblico edificante'}
+${bible ? `TEXTO: "${bible}"` : ''}
 
-            if (!title && !bible) {
-                alert("Por favor, preencha pelo menos o Título ou o Texto Bíblico para que a IA possa gerar o esboço.");
+REGRAS:
+1. Responda APENAS com o JSON cru. Não use markdown.
+2. Siga estritamente este formato:
+{
+  "title": "Título do Sermão",
+  "bible_text": "Referência Bíblica",
+  "intro": "Texto da introdução",
+  "topics": [
+    {"title": "Tópico 1", "content": "Conteúdo..."},
+    {"title": "Tópico 2", "content": "Conteúdo..."}
+  ],
+  "illustration": "Uma ilustração prática",
+  "conclusion": "Conclusão e apelo"
+}`;
+            document.getElementById('prompt-box').value = promptText;
+            document.getElementById('import-modal').style.display = 'flex';
+        }
+
+        function closeImportModal() {
+            document.getElementById('import-modal').style.display = 'none';
+        }
+
+        function copyPrompt() {
+            const copyText = document.getElementById("prompt-box");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); 
+            navigator.clipboard.writeText(copyText.value);
+            
+            const btn = document.querySelector('#import-modal button[onclick="copyPrompt()"]');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = 'Copiado!';
+            btn.classList.replace('bg-indigo-600', 'bg-green-600');
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.classList.replace('bg-green-600', 'bg-indigo-600');
+            }, 2000);
+        }
+
+        function processImport() {
+            const rawInput = document.getElementById('json-input').value;
+            if (!rawInput.trim()) {
+                alert("Por favor, cole o texto gerado pela IA no campo.");
                 return;
             }
 
-            const loading = document.getElementById('loading-overlay');
-            loading.style.display = 'flex';
-
             try {
-                // Instrução muito mais rígida para a IA
-                const prompt = `
-                    Você é um sistema backend que gera JSON.
-                    Gere um esboço de pregação sobre: Título="${title}", Bíblia="${bible}".
-                    
-                    REGRAS DE SAÍDA:
-                    1. Retorne APENAS um objeto JSON válido.
-                    2. NÃO use formatação markdown (\`\`\`json).
-                    3. NÃO inclua nenhum texto antes ou depois do JSON.
-                    4. O conteúdo deve ser em Português do Brasil.
-                    5. Se for usar quebra de linha, use \\n.
-
-                    Estrutura obrigatória do JSON:
-                    {
-                        "title": "Título sugerido",
-                        "bible_text": "Ref. Bíblica",
-                        "intro": "Texto da introdução",
-                        "topics": [
-                            {"title": "Tópico 1", "content": "Conteúdo 1"},
-                            {"title": "Tópico 2", "content": "Conteúdo 2"},
-                            {"title": "Tópico 3", "content": "Conteúdo 3"}
-                        ],
-                        "illustration": "Texto da ilustração",
-                        "conclusion": "Texto da conclusão"
-                    }
-                `;
-
-                const resultText = await callGemini(prompt);
-                
-                if (!resultText) {
-                    throw new Error("A IA não retornou nenhum texto.");
-                }
-
-                // Limpeza agressiva e segura
-                let cleanJson = resultText.trim();
-                
-                // Remove blocos de código se a IA insistir em colocá-los
+                // Tenta limpar o input caso o usuário cole markdown ou texto extra
+                let cleanJson = rawInput.trim();
                 cleanJson = cleanJson.replace(/```json/g, '').replace(/```/g, '');
                 
-                // Encontra o objeto JSON principal
                 const firstBrace = cleanJson.indexOf('{');
                 const lastBrace = cleanJson.lastIndexOf('}');
                 
@@ -300,49 +311,43 @@
                     cleanJson = cleanJson.substring(firstBrace, lastBrace + 1);
                 }
 
-                let data;
-                try {
-                    data = JSON.parse(cleanJson);
-                } catch (parseError) {
-                    console.error("Erro no Parse JSON:", parseError);
-                    alert("Erro ao ler a resposta da IA. O formato veio incorreto. Tente novamente.");
-                    return;
-                }
-
-                // Populate Fields (com verificações de segurança)
+                const data = JSON.parse(cleanJson);
+                
+                // Preencher campos
                 if (data.title) document.getElementById('sermonTitle').value = data.title;
                 if (data.bible_text) document.getElementById('bibleText').value = data.bible_text;
                 if (data.intro) document.getElementById('intro').value = data.intro;
                 if (data.illustration) document.getElementById('illustration').value = data.illustration;
                 if (data.conclusion) document.getElementById('conclusion').value = data.conclusion;
 
-                // Handle Topics
+                // Preencher Tópicos
                 const pointsContainer = document.getElementById('points-container');
-                pointsContainer.innerHTML = ''; // Clear existing
+                pointsContainer.innerHTML = ''; 
                 
                 if (data.topics && Array.isArray(data.topics)) {
                     data.topics.forEach((topic, index) => {
                         createPointElement(pointsContainer, index + 1, topic.title, topic.content);
                     });
                 } else {
-                    // Se não vier tópicos no JSON, cria 3 vazios para não quebrar
-                    createPointElement(pointsContainer, 1, "Tópico 1", "");
-                    createPointElement(pointsContainer, 2, "Tópico 2", "");
-                    createPointElement(pointsContainer, 3, "Tópico 3", "");
+                    // Fallback se não vier tópicos
+                    createPointElement(pointsContainer, 1, "Tópico I", "");
+                    createPointElement(pointsContainer, 2, "Tópico II", "");
+                    createPointElement(pointsContainer, 3, "Tópico III", "");
                 }
 
-                // Adjust sizes
+                // Ajustar interface
                 document.querySelectorAll('textarea').forEach(t => autoResize(t));
                 saveData();
-                alert("Esboço gerado com sucesso! Revise e personalize.");
+                closeImportModal();
+                alert("Esboço importado com sucesso!");
 
-            } catch (error) {
-                console.error("Erro geral:", error);
-                alert("Ocorreu um erro ao comunicar com a IA: " + error.message);
-            } finally {
-                loading.style.display = 'none';
+            } catch (e) {
+                console.error(e);
+                alert("Erro ao ler o texto colado. Certifique-se de que copiou a resposta completa da IA (o código JSON).");
             }
         }
+
+        // --- FUNÇÕES GERAIS ---
 
         function createPointElement(container, index, titleVal = '', contentVal = '') {
             const romanNumerals = ["", "I", "II", "III", "IV", "V", "VI"];
@@ -366,14 +371,12 @@
             container.appendChild(div);
         }
 
-        // Função para aumentar automaticamente o tamanho das textareas
         document.addEventListener('input', function (event) {
             if (event.target.tagName.toLowerCase() !== 'textarea') return;
             autoResize(event.target);
             saveData();
         });
 
-        // Salvar em inputs normais também
         document.addEventListener('change', function(event) {
             if (event.target.tagName.toLowerCase() === 'input') {
                 saveData();
@@ -385,22 +388,17 @@
             element.style.height = element.scrollHeight + 'px';
         }
 
-        // Função para Adicionar Tópicos (Manual)
         function addPoint() {
             const container = document.getElementById('points-container');
             createPointElement(container, container.children.length + 1);
         }
 
-        // Modo Púlpito
         function togglePulpitMode() {
             document.body.classList.toggle('pulpit-mode');
             const isPulpit = document.body.classList.contains('pulpit-mode');
-            
-            // Ajustar textareas para o novo tamanho de fonte
             document.querySelectorAll('textarea').forEach(t => autoResize(t));
         }
 
-        // LocalStorage: Salvar Dados
         function saveData() {
             const data = {
                 title: document.getElementById('sermonTitle').value,
@@ -412,7 +410,6 @@
                 pointsHTML: document.getElementById('points-container').innerHTML
             };
             
-            // Vamos salvar os valores dos inputs dentro do HTML dos pontos antes de salvar o HTML
             const pointsContainer = document.getElementById('points-container');
             const inputs = pointsContainer.querySelectorAll('input, textarea');
             inputs.forEach(input => {
@@ -426,7 +423,6 @@
             }));
         }
 
-        // LocalStorage: Carregar Dados
         function loadData() {
             const saved = localStorage.getItem('sermonDraft');
             if (saved) {
@@ -440,10 +436,9 @@
                 
                 if (data.pointsHTML) {
                     document.getElementById('points-container').innerHTML = data.pointsHTML;
-                    // Re-hidratar os valores das textareas nos pontos dinâmicos
                     const textareas = document.getElementById('points-container').querySelectorAll('textarea');
                     textareas.forEach(t => {
-                        t.value = t.textContent; // Recupera o valor salvo no textContent
+                        t.value = t.textContent; 
                         autoResize(t);
                     });
                     const inputs = document.getElementById('points-container').querySelectorAll('input');
@@ -452,7 +447,6 @@
                     });
                 }
                 
-                // Redimensionar textareas fixas
                 document.querySelectorAll('textarea').forEach(t => autoResize(t));
             }
         }
@@ -464,7 +458,6 @@
             }
         }
 
-        // Inicializar
         window.onload = loadData;
 
     </script>
