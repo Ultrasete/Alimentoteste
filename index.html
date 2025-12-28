@@ -6,6 +6,8 @@
     <title>Organizador de Homilias e Pregações</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <!-- Fonte Digital para o Cronômetro -->
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -26,22 +28,50 @@
             backdrop-filter: blur(2px);
         }
         
-        /* Estilos de Impressão */
+        /* Estilos de Impressão OTIMIZADOS */
         @media print {
             .no-print { display: none !important; }
-            body { background-color: white; }
+            body { background-color: white !important; }
             .print-container { 
-                box-shadow: none; 
-                padding: 0; 
-                max-width: 100%;
+                box-shadow: none !important; 
+                padding: 0 !important; 
+                margin: 0 !important;
+                max-width: 100% !important;
+                width: 100% !important;
             }
+            /* Esconde os inputs originais na impressão para usar as divs de substituição */
             textarea, input {
-                border: none;
-                resize: none;
-                padding: 0;
-                font-size: 14pt;
+                display: none !important;
+            }
+            /* Garante que o texto de substituição apareça corretamente */
+            .print-replacement {
+                display: block !important;
+                width: 100%;
+                overflow: visible;
+                white-space: pre-wrap; /* Mantém parágrafos e quebras de linha */
+                font-family: 'Merriweather', serif;
+                font-size: 12pt;
+                line-height: 1.5;
+                color: black;
+                margin-bottom: 10px;
+                text-align: justify;
+            }
+            .print-replacement.title-print {
+                font-size: 18pt;
+                font-weight: bold;
+                text-align: left;
+                margin-bottom: 5px;
+            }
+            /* Ajustes de layout para impressão */
+            .card {
+                border: none !important;
+            }
+            /* Forçar quebra de página se necessário, mas evitar quebrar dentro de um tópico */
+            .point-item {
+                page-break-inside: avoid;
             }
         }
+
         /* Modo Púlpito */
         .pulpit-mode {
             background-color: #111827 !important;
@@ -59,6 +89,25 @@
         }
         .pulpit-mode h1, .pulpit-mode h2, .pulpit-mode h3 {
             color: #fbbf24 !important; /* Amber-400 for headers */
+        }
+        
+        /* Cronômetro (Visível apenas no Púlpito ou ativado) */
+        #pulpit-timer {
+            display: none; /* Hidden by default */
+            font-family: 'Share Tech Mono', monospace;
+        }
+        .pulpit-mode #pulpit-timer {
+            display: flex; /* Show in pulpit mode */
+        }
+        
+        /* Animação de Fala */
+        .speaking-animation {
+            animation: pulse-ring 2s infinite;
+        }
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(236, 72, 153, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0); }
         }
     </style>
 </head>
@@ -120,30 +169,53 @@
     </div>
 
     <!-- Navegação -->
-    <nav class="bg-slate-900 text-white p-4 shadow-lg no-print">
-        <div class="max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+    <nav class="bg-slate-900 text-white p-4 shadow-lg no-print sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
                 <h1 class="text-xl font-bold">Planejador Homilético</h1>
             </div>
+
+            <!-- CRONÔMETRO DE PÚLPITO (Centralizado) -->
+            <div id="pulpit-timer" class="hidden items-center gap-3 bg-slate-800 px-4 py-1 rounded-full border border-slate-600 shadow-inner">
+                <span id="timer-display" class="text-2xl font-bold text-red-500 tracking-widest">00:00:00</span>
+                <div class="flex gap-1">
+                    <button onclick="toggleTimer()" id="timer-btn" class="p-1 hover:text-green-400 transition" title="Iniciar/Pausar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    </button>
+                    <button onclick="resetTimer()" class="p-1 hover:text-yellow-400 transition" title="Zerar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                    </button>
+                </div>
+            </div>
+
             <div class="flex flex-wrap justify-center gap-2 items-center">
                 
-                <!-- Botão Mágico Simplificado -->
-                <button onclick="openImportModal()" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded transition text-sm font-bold shadow-md ring-2 ring-emerald-400/50">
+                <!-- Botão Narração -->
+                <button id="btn-narrate" onclick="toggleNarration()" class="flex items-center gap-2 px-3 py-2 bg-pink-600 hover:bg-pink-700 rounded transition text-sm font-medium shadow-md" title="Ouvir Pregação">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                </button>
+                
+                <!-- Botão WhatsApp -->
+                <button onclick="shareWhatsApp()" class="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 rounded transition text-sm font-medium shadow-md" title="Enviar no WhatsApp">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-                    Gerar com IA (Fácil)
                 </button>
 
-                <button onclick="togglePulpitMode()" class="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 rounded transition text-sm font-medium" title="Modo Leitura">
+                <!-- Botão IA -->
+                <button onclick="openImportModal()" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded transition text-sm font-bold shadow-md ring-2 ring-emerald-400/50">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                    IA
+                </button>
+
+                <button onclick="togglePulpitMode()" class="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 rounded transition text-sm font-medium" title="Modo Púlpito">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>
                     Púlpito
                 </button>
                 <button onclick="window.print()" class="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded transition text-sm font-medium" title="Salvar PDF">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-                    PDF
                 </button>
                 <button onclick="clearForm()" class="px-3 py-2 bg-red-600 hover:bg-red-700 rounded transition text-sm font-medium" title="Apagar Tudo">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2-2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                 </button>
             </div>
         </div>
@@ -163,7 +235,13 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Texto Bíblico Base</label>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1 flex justify-between items-center">
+                        Texto Bíblico Base
+                        <button onclick="openOnlineBible()" class="text-indigo-600 hover:text-indigo-800 text-[10px] flex items-center gap-1 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 no-print" title="Pesquisar na Bíblia Online">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            Pesquisar
+                        </button>
+                    </label>
                     <input type="text" id="bibleText" placeholder="Ex: Filipenses 4:6-7" class="w-full text-lg border-b border-slate-200 focus:border-indigo-500 outline-none pb-1 bg-transparent">
                 </div>
 
@@ -243,6 +321,215 @@
     </main>
 
     <script>
+        // --- WHATSAPP E BÍBLIA ONLINE ---
+        
+        function openOnlineBible() {
+            const bibleInput = document.getElementById('bibleText').value.trim();
+            if (!bibleInput) {
+                alert("Digite um texto bíblico primeiro (ex: João 3:16).");
+                return;
+            }
+            // Usa o Biblia Online como padrão de pesquisa
+            const url = `https://www.bibliaonline.com.br/acf/busca?q=${encodeURIComponent(bibleInput)}`;
+            window.open(url, '_blank');
+        }
+
+        function shareWhatsApp() {
+            const title = document.getElementById('sermonTitle').value || "Esboço de Pregação";
+            const bible = document.getElementById('bibleText').value || "";
+            const intro = document.getElementById('intro').value || "";
+            const illustration = document.getElementById('illustration').value || "";
+            const conclusion = document.getElementById('conclusion').value || "";
+            
+            let message = `*${title.toUpperCase()}*\n`;
+            if(bible) message += `📖 _${bible}_\n\n`;
+            if(intro) message += `*Introdução:*\n${intro}\n\n`;
+            
+            const points = document.getElementById('points-container').children;
+            for(let i=0; i<points.length; i++) {
+                const pTitle = points[i].querySelector('input').value;
+                const pContent = points[i].querySelector('textarea').value;
+                
+                if(pTitle) message += `*${i+1}. ${pTitle}*\n`;
+                if(pContent) message += `${pContent}\n\n`;
+            }
+            
+            if(illustration) message += `*Ilustração:*\n${illustration}\n\n`;
+            
+            if(conclusion) message += `*Conclusão:*\n${conclusion}`;
+            
+            const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+            window.open(url, '_blank');
+        }
+
+        // --- CRONÔMETRO DE PÚLPITO ---
+        
+        let timerInterval;
+        let seconds = 0;
+        let isRunning = false;
+
+        function updateTimerDisplay() {
+            const hrs = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            const formatted = 
+                (hrs > 0 ? hrs.toString().padStart(2, '0') + ':' : '') +
+                mins.toString().padStart(2, '0') + ':' +
+                secs.toString().padStart(2, '0');
+                
+            document.getElementById('timer-display').innerText = formatted;
+        }
+
+        function toggleTimer() {
+            const btn = document.getElementById('timer-btn');
+            if (isRunning) {
+                clearInterval(timerInterval);
+                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>'; // Play Icon
+            } else {
+                timerInterval = setInterval(() => {
+                    seconds++;
+                    updateTimerDisplay();
+                }, 1000);
+                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>'; // Pause Icon
+            }
+            isRunning = !isRunning;
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            isRunning = false;
+            seconds = 0;
+            updateTimerDisplay();
+            document.getElementById('timer-btn').innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+        }
+
+        // --- PREPARAÇÃO INTELIGENTE PARA IMPRESSÃO ---
+        // Isso resolve o problema de texto cortado convertendo Textareas em Texto Puro antes de imprimir
+        
+        window.addEventListener('beforeprint', () => {
+            // Encontra todos os inputs e textareas que queremos imprimir
+            document.querySelectorAll('textarea, input[type="text"]').forEach(el => {
+                // Pula se estiver vazio
+                if (!el.value.trim()) return;
+
+                const div = document.createElement('div');
+                div.className = 'print-replacement ' + el.className;
+                
+                // Limpeza de classes que atrapalham a impressão (cores de fundo, bordas de foco)
+                div.classList.remove('bg-slate-50', 'focus:ring-2', 'focus:border-indigo-500', 'bg-transparent');
+                
+                // Adiciona classe específica se for o título principal para ficar maior
+                if(el.id === 'sermonTitle') {
+                    div.classList.add('title-print');
+                }
+
+                div.textContent = el.value;
+                
+                // Insere a div logo antes do elemento original
+                el.parentNode.insertBefore(div, el);
+            });
+        });
+
+        window.addEventListener('afterprint', () => {
+            // Remove todas as divs temporárias criadas para impressão
+            document.querySelectorAll('.print-replacement').forEach(el => el.remove());
+        });
+
+        // --- SISTEMA DE NARRAÇÃO (Text-to-Speech) ---
+
+        let isSpeaking = false;
+        
+        function toggleNarration() {
+            const btn = document.getElementById('btn-narrate');
+
+            if (isSpeaking) {
+                // Parar Narração
+                window.speechSynthesis.cancel();
+                isSpeaking = false;
+                btn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                `;
+                btn.classList.remove('speaking-animation');
+            } else {
+                // Começar Narração
+                const textToRead = constructSermonText();
+                if(!textToRead) {
+                    alert("Não há texto para ler. Escreva algo primeiro!");
+                    return;
+                }
+
+                const utterance = new SpeechSynthesisUtterance(textToRead);
+                utterance.lang = 'pt-BR';
+                
+                // Tenta selecionar a melhor voz em PT-BR
+                const voices = window.speechSynthesis.getVoices();
+                // Preferência: Google PT-BR -> Microsoft -> Qualquer PT-BR
+                const bestVoice = voices.find(v => v.lang === 'pt-BR' && v.name.includes('Google')) ||
+                                  voices.find(v => v.lang === 'pt-BR' && v.name.includes('Microsoft')) ||
+                                  voices.find(v => v.lang === 'pt-BR');
+                
+                if (bestVoice) {
+                    utterance.voice = bestVoice;
+                }
+
+                // Ajustes de velocidade e tom
+                utterance.rate = 1.0; // Velocidade normal
+                utterance.pitch = 1.0;
+
+                // Evento ao terminar
+                utterance.onend = function() {
+                    isSpeaking = false;
+                    btn.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                    `;
+                    btn.classList.remove('speaking-animation');
+                };
+
+                window.speechSynthesis.speak(utterance);
+                isSpeaking = true;
+                
+                // Mudar ícone para "Parar" e animar
+                btn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                `;
+                btn.classList.add('speaking-animation');
+            }
+        }
+
+        function constructSermonText() {
+            let text = "";
+            
+            // Helper para adicionar texto se existir
+            const add = (label, elementId, pause = true) => {
+                const el = document.getElementById(elementId);
+                if (el && el.value.trim()) {
+                    text += `${label}. ${el.value}. `;
+                    if(pause) text += " ... "; // Pausa forçada na fala
+                }
+            };
+
+            add("Título da Mensagem", "sermonTitle");
+            add("Texto Bíblico Base", "bibleText");
+            add("Data e Ocasião", "sermonDate");
+            add("Introdução", "intro");
+
+            // Pontos Dinâmicos
+            const points = document.getElementById('points-container').children;
+            for(let i=0; i<points.length; i++) {
+                const titleInput = points[i].querySelector('input');
+                const contentArea = points[i].querySelector('textarea');
+                
+                if(titleInput.value.trim()) text += `Tópico ${i+1}: ${titleInput.value}. `;
+                if(contentArea.value.trim()) text += `${contentArea.value}. ... `;
+            }
+
+            add("Ilustração Prática", "illustration");
+            add("Conclusão e Apelo", "conclusion");
+
+            return text;
+        }
+
         // --- FUNÇÕES DE IMPORTAÇÃO SIMPLIFICADA ---
 
         function openImportModal() {
