@@ -152,6 +152,35 @@
 </head>
 <body id="app-body" class="text-slate-800 transition-colors duration-300 pb-20 md:pb-0">
 
+    <!-- Modal de Biblioteca -->
+    <div id="library-modal" class="modal-overlay">
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-2xl max-w-2xl w-full border-t-8 border-yellow-500 flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-yellow-600"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    Minha Biblioteca de Sermões
+                </h3>
+                <button onclick="closeLibraryModal()" class="text-slate-400 hover:text-slate-600 p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+
+            <div class="mb-4">
+                <button onclick="saveCurrentToLibrary()" class="w-full py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-bold shadow flex items-center justify-center gap-2 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                    Salvar Sermão Atual na Biblioteca
+                </button>
+            </div>
+
+            <div class="overflow-y-auto pr-1 flex-1">
+                <div id="library-list" class="space-y-3">
+                    <!-- Os itens da biblioteca aparecerão aqui -->
+                    <p class="text-center text-slate-400 py-4 italic">Nenhum sermão salvo ainda.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal de Importação Simplificada (Manual) -->
     <div id="import-modal" class="modal-overlay">
         <div class="bg-white p-4 md:p-6 rounded-xl shadow-2xl max-w-2xl w-full border-t-8 border-lime-500 flex flex-col max-h-[90vh]">
@@ -248,25 +277,34 @@
                     <span class="hidden md:inline">Ouvir</span>
                 </button>
                 
-                <button onclick="shareWhatsApp()" class="flex-shrink-0 flex items-center gap-1 px-3 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition text-sm font-bold shadow-md" title="WhatsApp">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                <button onclick="openLibraryModal()" class="flex-shrink-0 flex items-center gap-1 px-3 py-2.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition text-sm font-bold shadow-md" title="Biblioteca de Sermões">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    <span class="hidden md:inline">Biblioteca</span>
                 </button>
 
                 <!-- Botão IA Principal -->
                 <button onclick="openImportModal()" class="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 bg-lime-500 hover:bg-lime-400 text-slate-900 rounded-lg transition text-sm font-bold shadow-lg shadow-lime-900/20 ring-2 ring-lime-400/50 animate-pulse-slow">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-                    IA Mágica
+                    IA
                 </button>
 
                 <button onclick="toggleStudyPanel()" class="flex-shrink-0 flex items-center gap-1 px-3 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm font-medium" title="Estudo">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                 </button>
 
-                <button onclick="downloadBackup()" class="flex-shrink-0 flex items-center gap-1 px-3 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition text-sm font-medium" title="Baixar">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <button onclick="copyToClipboard()" class="flex-shrink-0 flex items-center gap-1 px-3 py-2.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition text-sm font-medium" title="Copiar para Word">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
                 </button>
 
-                <button onclick="window.print()" class="hidden md:flex flex-shrink-0 items-center gap-1 px-3 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition text-sm font-medium" title="Imprimir">
+                <button onclick="shareWhatsApp()" class="flex-shrink-0 flex items-center gap-1 px-3 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition text-sm font-bold shadow-md" title="WhatsApp">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                </button>
+
+                <button onclick="togglePulpitMode()" class="flex items-center gap-2 px-3 py-2.5 bg-indigo-600 hover:bg-indigo-700 rounded transition text-sm font-medium" title="Modo Púlpito">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>
+                </button>
+
+                <button onclick="window.print()" class="flex-shrink-0 flex items-center gap-1 px-3 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition text-sm font-medium" title="Imprimir / Salvar PDF">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
                 </button>
 
@@ -451,6 +489,129 @@
 
             const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
             window.open(url, '_blank');
+        }
+
+        // --- BIBLIOTECA DE SERMÕES ---
+
+        function openLibraryModal() {
+            renderLibrary();
+            document.getElementById('library-modal').style.display = 'flex';
+        }
+
+        function closeLibraryModal() {
+            document.getElementById('library-modal').style.display = 'none';
+        }
+
+        function getLibrary() {
+            return JSON.parse(localStorage.getItem('sermonLibrary') || '[]');
+        }
+
+        function saveCurrentToLibrary() {
+            const currentData = JSON.parse(localStorage.getItem('sermonDraft'));
+            if (!currentData || !currentData.title) {
+                alert("Escreva pelo menos um título para salvar na biblioteca.");
+                return;
+            }
+
+            const library = getLibrary();
+            const id = Date.now().toString(); // ID único
+            const sermonRecord = {
+                id: id,
+                title: currentData.title,
+                dateSaved: new Date().toLocaleString(),
+                data: currentData
+            };
+
+            library.unshift(sermonRecord); // Adiciona no início
+            localStorage.setItem('sermonLibrary', JSON.stringify(library));
+            renderLibrary();
+            alert("Sermão salvo na biblioteca com sucesso!");
+        }
+
+        function loadFromLibrary(id) {
+            if(!confirm("Isso irá substituir o texto atual. Deseja continuar?")) return;
+            
+            const library = getLibrary();
+            const sermon = library.find(s => s.id === id);
+            
+            if (sermon) {
+                localStorage.setItem('sermonDraft', JSON.stringify(sermon.data));
+                loadData(); // Recarrega a tela
+                closeLibraryModal();
+            }
+        }
+
+        function deleteFromLibrary(id) {
+            if(!confirm("Tem certeza que deseja excluir este sermão da biblioteca?")) return;
+            
+            let library = getLibrary();
+            library = library.filter(s => s.id !== id);
+            localStorage.setItem('sermonLibrary', JSON.stringify(library));
+            renderLibrary();
+        }
+
+        function renderLibrary() {
+            const list = document.getElementById('library-list');
+            const library = getLibrary();
+            
+            if (library.length === 0) {
+                list.innerHTML = '<p class="text-center text-slate-400 py-4 italic">Nenhum sermão salvo ainda.</p>';
+                return;
+            }
+
+            list.innerHTML = library.map(item => `
+                <div class="flex justify-between items-center p-3 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition">
+                    <div class="flex-1 overflow-hidden">
+                        <h4 class="font-bold text-slate-800 truncate">${item.title || 'Sem Título'}</h4>
+                        <p class="text-xs text-slate-500">${item.dateSaved}</p>
+                    </div>
+                    <div class="flex gap-2 ml-2">
+                        <button onclick="loadFromLibrary('${item.id}')" class="p-2 text-blue-600 hover:bg-blue-100 rounded" title="Abrir">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        </button>
+                        <button onclick="deleteFromLibrary('${item.id}')" class="p-2 text-red-600 hover:bg-red-100 rounded" title="Excluir">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // --- CLIPBOARD (Copiar para Word) ---
+        
+        function copyToClipboard() {
+            const fullTextHTML = document.querySelector('.card').innerHTML; // Pega o HTML do cartão
+            
+            // Cria um elemento temporário para copiar
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = fullTextHTML;
+            
+            // Limpa botões e elementos que não devem ser copiados
+            tempDiv.querySelectorAll('button').forEach(b => b.remove());
+            tempDiv.querySelectorAll('input, textarea').forEach(el => {
+                const p = document.createElement('p');
+                p.innerText = el.value;
+                p.style.marginBottom = '10px';
+                el.replaceWith(p);
+            });
+
+            document.body.appendChild(tempDiv);
+            
+            // Seleciona e copia
+            const range = document.createRange();
+            range.selectNode(tempDiv);
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+            
+            try {
+                document.execCommand('copy');
+                alert("Copiado com sucesso! Agora cole no Word ou Google Docs (Ctrl+V).");
+            } catch (err) {
+                alert("Erro ao copiar.");
+            }
+            
+            document.body.removeChild(tempDiv);
+            window.getSelection().removeAllRanges();
         }
 
         // --- BACKUP DOWNLOAD ---
