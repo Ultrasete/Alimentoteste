@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Organizador de Homilias e Pregações</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
@@ -12,20 +12,30 @@
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6;
+            -webkit-font-smoothing: antialiased;
         }
         .sermon-text {
             font-family: 'Merriweather', serif;
         }
+        
+        /* Prevenir zoom no iOS ao focar em inputs */
+        @media screen and (max-width: 768px) {
+            input, textarea, select {
+                font-size: 16px !important;
+            }
+        }
+
         /* Modals */
         .modal-overlay {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.6);
             z-index: 1000;
             justify-content: center;
             align-items: center;
-            backdrop-filter: blur(2px);
+            backdrop-filter: blur(3px);
+            padding: 1rem;
         }
         
         /* Estilos de Impressão OTIMIZADOS */
@@ -39,16 +49,14 @@
                 max-width: 100% !important;
                 width: 100% !important;
             }
-            /* Esconde os inputs originais na impressão para usar as divs de substituição */
             textarea, input {
                 display: none !important;
             }
-            /* Garante que o texto de substituição apareça corretamente */
             .print-replacement {
                 display: block !important;
                 width: 100%;
                 overflow: visible;
-                white-space: pre-wrap; /* Mantém parágrafos e quebras de linha */
+                white-space: pre-wrap;
                 font-family: 'Merriweather', serif;
                 font-size: 12pt;
                 line-height: 1.5;
@@ -62,42 +70,45 @@
                 text-align: left;
                 margin-bottom: 5px;
             }
-            /* Ajustes de layout para impressão */
-            .card {
-                border: none !important;
-            }
-            /* Forçar quebra de página se necessário, mas evitar quebrar dentro de um tópico */
-            .point-item {
-                page-break-inside: avoid;
+            .card { border: none !important; }
+            .point-item { page-break-inside: avoid; }
+            #study-panel {
+                display: block !important;
+                border: 1px solid #ddd;
+                padding: 10px;
+                margin-top: 20px;
             }
         }
 
         /* Modo Púlpito */
         .pulpit-mode {
-            background-color: #111827 !important;
-            color: #f3f4f6 !important;
+            background-color: #000000 !important;
+            color: #bef264 !important; /* Lime-200 text */
         }
         .pulpit-mode textarea, .pulpit-mode input, .pulpit-mode select {
-            background-color: #1f2937 !important;
+            background-color: #1a1a1a !important;
             color: #ffffff !important;
-            border-color: #374151 !important;
+            border-color: #3f6212 !important; /* Lime-800 border */
             font-size: 1.5rem !important;
             line-height: 2rem;
         }
         .pulpit-mode .card {
-            background-color: #1f2937 !important;
+            background-color: #1a1a1a !important;
         }
         .pulpit-mode h1, .pulpit-mode h2, .pulpit-mode h3 {
-            color: #fbbf24 !important; /* Amber-400 for headers */
+            color: #84cc16 !important; /* Lime-500 for headers */
+        }
+        .pulpit-mode #study-panel {
+            display: none;
         }
         
-        /* Cronômetro (Visível apenas no Púlpito ou ativado) */
+        /* Cronômetro */
         #pulpit-timer {
-            display: none; /* Hidden by default */
+            display: none;
             font-family: 'Share Tech Mono', monospace;
         }
         .pulpit-mode #pulpit-timer {
-            display: flex; /* Show in pulpit mode */
+            display: flex;
         }
         
         /* Animação de Fala */
@@ -105,117 +116,162 @@
             animation: pulse-ring 2s infinite;
         }
         @keyframes pulse-ring {
-            0% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(236, 72, 153, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0); }
+            0% { box-shadow: 0 0 0 0 rgba(132, 204, 22, 0.7); } /* Lime Color */
+            70% { box-shadow: 0 0 0 10px rgba(132, 204, 22, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(132, 204, 22, 0); }
+        }
+        
+        /* Painel de Estudo */
+        #study-panel {
+            display: none;
+        }
+        #study-panel.active {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Scrollbar Horizontal para Menu Mobile */
+        .mobile-scroll {
+            overflow-x: auto;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 5px;
+        }
+        .mobile-scroll::-webkit-scrollbar {
+            height: 4px;
+        }
+        .mobile-scroll::-webkit-scrollbar-track {
+            background: #111;
+        }
+        .mobile-scroll::-webkit-scrollbar-thumb {
+            background: #84cc16;
+            border-radius: 4px;
         }
     </style>
 </head>
-<body id="app-body" class="text-slate-800 transition-colors duration-300">
+<body id="app-body" class="text-slate-800 transition-colors duration-300 pb-20 md:pb-0">
 
     <!-- Modal de Importação Simplificada (Manual) -->
     <div id="import-modal" class="modal-overlay">
-        <div class="bg-white p-6 rounded-lg shadow-2xl max-w-2xl w-full mx-4 border-t-4 border-indigo-600 flex flex-col max-h-[90vh]">
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-2xl max-w-2xl w-full border-t-8 border-lime-500 flex flex-col max-h-[90vh]">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-600"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    Gerador de Esboço Universal
+                <h3 class="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-lime-600"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Gerador Inteligente
                 </h3>
-                <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-600">
+                <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-600 p-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
             </div>
 
-            <div class="overflow-y-auto pr-2 space-y-6">
+            <!-- Seleção de Tipo -->
+            <div class="flex gap-2 mb-4">
+                <button onclick="setPromptType('sermon')" id="btn-type-sermon" class="flex-1 py-3 rounded-lg border border-lime-200 bg-lime-50 text-lime-800 font-bold hover:bg-lime-100 transition text-sm">Pregação</button>
+                <button onclick="setPromptType('study')" id="btn-type-study" class="flex-1 py-3 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition text-sm">Estudo</button>
+            </div>
+
+            <div class="overflow-y-auto pr-1 space-y-4">
                 <!-- Passo 1 -->
-                <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
-                    <h4 class="font-bold text-indigo-800 mb-2 flex items-center gap-2">
-                        <span class="bg-indigo-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">1</span>
-                        Copie o comando abaixo
+                <div class="bg-lime-50 p-4 rounded-lg border border-lime-200">
+                    <h4 class="font-bold text-lime-800 mb-2 flex items-center gap-2 text-sm">
+                        <span class="bg-lime-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">1</span>
+                        Copie este comando
                     </h4>
-                    <p class="text-sm text-indigo-600 mb-2">Este comando instrui qualquer IA (ChatGPT, Gemini, Meta AI) a criar seu esboço.</p>
                     <div class="relative">
-                        <textarea id="prompt-box" readonly class="w-full h-24 p-3 text-xs bg-white border border-indigo-200 rounded text-slate-600 font-mono resize-none focus:outline-none"></textarea>
-                        <button onclick="copyPrompt()" class="absolute top-2 right-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1 rounded shadow transition flex items-center gap-1">
+                        <textarea id="prompt-box" readonly class="w-full h-24 p-3 text-xs bg-white border border-lime-300 rounded text-slate-600 font-mono resize-none focus:outline-none"></textarea>
+                        <button onclick="copyPrompt()" class="absolute top-2 right-2 bg-lime-600 hover:bg-lime-700 text-white text-xs px-3 py-1.5 rounded-full shadow transition flex items-center gap-1 font-bold">
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                            Copiar
+                            COPIAR
                         </button>
                     </div>
                 </div>
 
                 <!-- Passo 2 -->
-                <div class="text-center text-sm text-slate-500">
-                    <p>Cole o comando no <strong>ChatGPT</strong>, <strong>Gemini</strong> ou <strong>WhatsApp Meta AI</strong>.</p>
+                <div class="text-center text-xs text-slate-500">
+                    <p>Cole no ChatGPT, Gemini ou Meta AI e copie a resposta.</p>
                 </div>
 
                 <!-- Passo 3 -->
                 <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                    <h4 class="font-bold text-slate-700 mb-2 flex items-center gap-2">
-                        <span class="bg-slate-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">2</span>
-                        Cole a resposta da IA aqui
+                    <h4 class="font-bold text-slate-700 mb-2 flex items-center gap-2 text-sm">
+                        <span class="bg-slate-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">2</span>
+                        Cole a resposta aqui
                     </h4>
-                    <textarea id="json-input" placeholder="Cole aqui o texto que a Inteligência Artificial gerou..." class="w-full h-32 p-3 text-sm bg-white border border-slate-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none resize-none"></textarea>
+                    <textarea id="json-input" placeholder="Cole aqui o código JSON..." class="w-full h-24 p-3 text-sm bg-white border border-slate-300 rounded focus:ring-2 focus:ring-lime-500 focus:border-lime-500 outline-none resize-none"></textarea>
                 </div>
             </div>
 
-            <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button onclick="closeImportModal()" class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded text-sm font-medium">Cancelar</button>
-                <button onclick="processImport()" class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-bold shadow-md flex items-center gap-2">
+            <div class="mt-4 flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button onclick="closeImportModal()" class="px-4 py-3 text-slate-600 hover:bg-slate-100 rounded-lg text-sm font-medium">Cancelar</button>
+                <button onclick="processImport()" class="px-6 py-3 bg-lime-600 text-white rounded-lg hover:bg-lime-700 text-sm font-bold shadow-lg flex items-center gap-2 w-full md:w-auto justify-center">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                    Gerar Esboço Automaticamente
+                    Gerar Agora
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Navegação -->
-    <nav class="bg-slate-900 text-white p-4 shadow-lg no-print sticky top-0 z-50">
-        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
-                <h1 class="text-xl font-bold">Planejador Homilético</h1>
+    <!-- Navegação Mobile Friendly -->
+    <nav class="bg-slate-900 text-white p-3 shadow-lg no-print sticky top-0 z-50 border-b-2 border-lime-500">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
+            <div class="flex items-center gap-2 w-full md:w-auto justify-between md:justify-start">
+                <div class="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-lime-400"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                    <h1 class="text-lg md:text-xl font-bold text-lime-400">Pregador<span class="text-white">Pro</span></h1>
+                </div>
+                
+                <!-- Botão de Púlpito Rápido Mobile -->
+                <button onclick="togglePulpitMode()" class="md:hidden p-2 bg-slate-800 rounded-full text-lime-400 border border-lime-500/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>
+                </button>
             </div>
 
-            <!-- CRONÔMETRO DE PÚLPITO (Centralizado) -->
-            <div id="pulpit-timer" class="hidden items-center gap-3 bg-slate-800 px-4 py-1 rounded-full border border-slate-600 shadow-inner">
-                <span id="timer-display" class="text-2xl font-bold text-red-500 tracking-widest">00:00:00</span>
-                <div class="flex gap-1">
-                    <button onclick="toggleTimer()" id="timer-btn" class="p-1 hover:text-green-400 transition" title="Iniciar/Pausar">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            <!-- CRONÔMETRO DE PÚLPITO -->
+            <div id="pulpit-timer" class="hidden w-full md:w-auto justify-center items-center gap-3 bg-black/50 px-4 py-2 rounded-full border border-lime-900 shadow-inner my-2 md:my-0">
+                <span id="timer-display" class="text-3xl font-bold text-lime-500 tracking-widest font-mono">00:00:00</span>
+                <div class="flex gap-2">
+                    <button onclick="toggleTimer()" id="timer-btn" class="p-2 bg-slate-800 rounded-full text-white hover:text-lime-400 transition" title="Iniciar/Pausar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                     </button>
-                    <button onclick="resetTimer()" class="p-1 hover:text-yellow-400 transition" title="Zerar">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                    <button onclick="resetTimer()" class="p-2 bg-slate-800 rounded-full text-white hover:text-red-400 transition" title="Zerar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
                     </button>
                 </div>
             </div>
 
-            <div class="flex flex-wrap justify-center gap-2 items-center">
+            <!-- Menu de Ações (Scroll Horizontal no Mobile) -->
+            <div class="flex items-center gap-2 w-full md:w-auto mobile-scroll pb-1">
                 
-                <!-- Botão Narração -->
-                <button id="btn-narrate" onclick="toggleNarration()" class="flex items-center gap-2 px-3 py-2 bg-pink-600 hover:bg-pink-700 rounded transition text-sm font-medium shadow-md" title="Ouvir Pregação">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                <button id="btn-narrate" onclick="toggleNarration()" class="flex-shrink-0 flex items-center gap-1 px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-lime-400 border border-slate-700 rounded-lg transition text-sm font-bold shadow-sm" title="Ouvir">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                    <span class="hidden md:inline">Ouvir</span>
                 </button>
                 
-                <!-- Botão WhatsApp -->
-                <button onclick="shareWhatsApp()" class="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 rounded transition text-sm font-medium shadow-md" title="Enviar no WhatsApp">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                <button onclick="shareWhatsApp()" class="flex-shrink-0 flex items-center gap-1 px-3 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition text-sm font-bold shadow-md" title="WhatsApp">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
                 </button>
 
-                <!-- Botão IA -->
-                <button onclick="openImportModal()" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded transition text-sm font-bold shadow-md ring-2 ring-emerald-400/50">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-                    IA
+                <!-- Botão IA Principal -->
+                <button onclick="openImportModal()" class="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 bg-lime-500 hover:bg-lime-400 text-slate-900 rounded-lg transition text-sm font-bold shadow-lg shadow-lime-900/20 ring-2 ring-lime-400/50 animate-pulse-slow">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                    IA Mágica
                 </button>
 
-                <button onclick="togglePulpitMode()" class="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 rounded transition text-sm font-medium" title="Modo Púlpito">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>
-                    Púlpito
+                <button onclick="toggleStudyPanel()" class="flex-shrink-0 flex items-center gap-1 px-3 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm font-medium" title="Estudo">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                 </button>
-                <button onclick="window.print()" class="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded transition text-sm font-medium" title="Salvar PDF">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+
+                <button onclick="downloadBackup()" class="flex-shrink-0 flex items-center gap-1 px-3 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition text-sm font-medium" title="Baixar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 </button>
-                <button onclick="clearForm()" class="px-3 py-2 bg-red-600 hover:bg-red-700 rounded transition text-sm font-medium" title="Apagar Tudo">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2-2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+
+                <button onclick="window.print()" class="hidden md:flex flex-shrink-0 items-center gap-1 px-3 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition text-sm font-medium" title="Imprimir">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                </button>
+
+                <button onclick="clearForm()" class="flex-shrink-0 flex items-center gap-1 px-3 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition text-sm font-medium" title="Limpar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                 </button>
             </div>
         </div>
@@ -225,42 +281,75 @@
     <main class="max-w-4xl mx-auto p-4 md:p-8">
         
         <!-- Cartão Principal do Esboço -->
-        <div class="card bg-white shadow-xl rounded-lg p-8 print-container transition-colors duration-300">
+        <div class="card bg-white shadow-xl rounded-xl p-6 md:p-8 print-container transition-colors duration-300 border-t-4 border-lime-500">
             
             <!-- Cabeçalho do Sermão -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 border-b pb-6 border-slate-200">
                 <div class="col-span-1 md:col-span-2">
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Título da Mensagem</label>
-                    <input type="text" id="sermonTitle" placeholder="Ex: O Poder da Oração Constante" class="w-full text-2xl md:text-3xl font-bold border-b-2 border-slate-200 focus:border-indigo-500 outline-none pb-2 bg-transparent sermon-text">
+                    <input type="text" id="sermonTitle" placeholder="Ex: O Poder da Oração" class="w-full text-2xl md:text-3xl font-bold border-b-2 border-lime-200 focus:border-lime-500 outline-none pb-2 bg-transparent sermon-text transition-colors">
                 </div>
 
                 <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1 flex justify-between items-center">
-                        Texto Bíblico Base
-                        <button onclick="openOnlineBible()" class="text-indigo-600 hover:text-indigo-800 text-[10px] flex items-center gap-1 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 no-print" title="Pesquisar na Bíblia Online">
+                        Texto Bíblico
+                        <button onclick="openOnlineBible()" class="text-lime-700 hover:text-lime-900 text-[10px] flex items-center gap-1 bg-lime-100 px-2 py-1 rounded border border-lime-200 no-print font-bold" title="Pesquisar">
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                             Pesquisar
                         </button>
                     </label>
-                    <input type="text" id="bibleText" placeholder="Ex: Filipenses 4:6-7" class="w-full text-lg border-b border-slate-200 focus:border-indigo-500 outline-none pb-1 bg-transparent">
+                    <input type="text" id="bibleText" placeholder="Ex: Filipenses 4:6-7" class="w-full text-lg border-b border-slate-200 focus:border-lime-500 outline-none pb-1 bg-transparent">
                 </div>
 
                 <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Data / Ocasião</label>
-                    <input type="text" id="sermonDate" placeholder="Ex: Culto de Domingo à Noite" class="w-full text-lg border-b border-slate-200 focus:border-indigo-500 outline-none pb-1 bg-transparent">
+                    <input type="text" id="sermonDate" placeholder="Ex: Domingo à Noite" class="w-full text-lg border-b border-slate-200 focus:border-lime-500 outline-none pb-1 bg-transparent">
                 </div>
             </div>
 
-            <!-- Estrutura Homilética -->
+            <!-- PAINEL DE ESTUDO TEOLÓGICO -->
+            <div id="study-panel" class="mb-8 border-2 border-dashed border-blue-200 bg-blue-50 rounded-lg p-4 md:p-6">
+                <h2 class="text-blue-800 font-bold text-lg mb-4 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2m0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8"/><path d="M12 12v6"/><path d="M12 6h.01"/></svg>
+                    Aprofundamento Teológico
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                    <div class="col-span-1 md:col-span-2">
+                        <label class="block text-xs font-bold uppercase text-blue-600 mb-1">Contexto Histórico</label>
+                        <textarea id="studyContext" rows="3" class="w-full p-3 rounded bg-white border border-blue-200 focus:ring-2 focus:ring-blue-300 outline-none text-sm" placeholder="Quem escreveu? Para quem? Em qual época?"></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-blue-600 mb-1">Exegese / Palavras-Chave</label>
+                        <textarea id="studyExegesis" rows="3" class="w-full p-3 rounded bg-white border border-blue-200 focus:ring-2 focus:ring-blue-300 outline-none text-sm" placeholder="Termos originais e significados..."></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-blue-600 mb-1">Referências Cruzadas</label>
+                        <textarea id="studyRefs" rows="3" class="w-full p-3 rounded bg-white border border-blue-200 focus:ring-2 focus:ring-blue-300 outline-none text-sm" placeholder="Outros textos que apoiam..."></textarea>
+                    </div>
+
+                    <div class="col-span-1 md:col-span-2 border-t border-blue-200 pt-4 mt-2">
+                        <label class="block text-xs font-bold uppercase text-purple-600 mb-1 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                            Sugestão de Hinos
+                        </label>
+                        <textarea id="worshipSongs" rows="2" class="w-full p-3 rounded bg-purple-50 border border-purple-200 focus:ring-2 focus:ring-purple-300 outline-none text-sm text-purple-900" placeholder="Hinos que conectam com a mensagem..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estrutura Homilética Principal -->
             <div class="space-y-8">
                 
                 <!-- Introdução -->
                 <section>
-                    <div class="flex items-center gap-2 mb-2 text-indigo-700 font-semibold uppercase tracking-wide text-sm">
+                    <div class="flex items-center gap-2 mb-2 text-lime-700 font-bold uppercase tracking-wide text-sm">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
-                        Introdução & Contexto
+                        Introdução
                     </div>
-                    <textarea id="intro" rows="4" class="w-full p-3 rounded bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none sermon-text text-lg leading-relaxed transition-colors duration-300" placeholder="O gancho inicial, contexto histórico e a proposição do sermão..."></textarea>
+                    <textarea id="intro" rows="4" class="w-full p-3 rounded-lg bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-lime-200 focus:border-lime-500 outline-none sermon-text text-lg leading-relaxed transition-colors duration-300" placeholder="O gancho inicial, contexto histórico e a proposição..."></textarea>
                 </section>
 
                 <!-- Pontos Principais (Dinâmicos) -->
@@ -268,54 +357,54 @@
                     <!-- Tópico 1 -->
                     <div class="point-item relative group">
                         <div class="flex items-center justify-between mb-2">
-                            <h3 class="text-indigo-700 font-bold text-lg uppercase flex items-center gap-2">
-                                <span class="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded-full w-6 h-6 flex items-center justify-center">1</span>
+                            <h3 class="text-lime-700 font-bold text-lg uppercase flex items-center gap-2">
+                                <span class="bg-lime-100 text-lime-800 text-xs px-2 py-1 rounded-full w-6 h-6 flex items-center justify-center border border-lime-300">1</span>
                                 Tópico I
                             </h3>
                         </div>
-                        <input type="text" placeholder="Título do Tópico (Ex: A Necessidade da Fé)" class="w-full font-bold text-xl mb-2 border-b border-slate-200 focus:border-indigo-500 outline-none bg-transparent pb-1 sermon-text">
-                        <textarea rows="3" placeholder="Desenvolvimento, referências cruzadas e explicação..." class="w-full p-3 rounded bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none sermon-text text-lg leading-relaxed transition-colors duration-300"></textarea>
+                        <input type="text" placeholder="Título do Tópico" class="w-full font-bold text-xl mb-2 border-b border-slate-200 focus:border-lime-500 outline-none bg-transparent pb-1 sermon-text">
+                        <textarea rows="3" placeholder="Desenvolvimento, referências..." class="w-full p-3 rounded-lg bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-lime-200 focus:border-lime-500 outline-none sermon-text text-lg leading-relaxed transition-colors duration-300"></textarea>
                     </div>
                     
                     <!-- Tópico 2 -->
                     <div class="point-item relative group">
                          <div class="flex items-center justify-between mb-2">
-                            <h3 class="text-indigo-700 font-bold text-lg uppercase flex items-center gap-2">
-                                <span class="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded-full w-6 h-6 flex items-center justify-center">2</span>
+                            <h3 class="text-lime-700 font-bold text-lg uppercase flex items-center gap-2">
+                                <span class="bg-lime-100 text-lime-800 text-xs px-2 py-1 rounded-full w-6 h-6 flex items-center justify-center border border-lime-300">2</span>
                                 Tópico II
                             </h3>
                         </div>
-                        <input type="text" placeholder="Título do Tópico" class="w-full font-bold text-xl mb-2 border-b border-slate-200 focus:border-indigo-500 outline-none bg-transparent pb-1 sermon-text">
-                        <textarea rows="3" placeholder="Desenvolvimento..." class="w-full p-3 rounded bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none sermon-text text-lg leading-relaxed transition-colors duration-300"></textarea>
+                        <input type="text" placeholder="Título do Tópico" class="w-full font-bold text-xl mb-2 border-b border-slate-200 focus:border-lime-500 outline-none bg-transparent pb-1 sermon-text">
+                        <textarea rows="3" placeholder="Desenvolvimento..." class="w-full p-3 rounded-lg bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-lime-200 focus:border-lime-500 outline-none sermon-text text-lg leading-relaxed transition-colors duration-300"></textarea>
                     </div>
                 </div>
 
                 <div class="no-print text-center pt-2">
-                    <button onclick="addPoint()" class="text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center justify-center gap-1 mx-auto">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    <button onclick="addPoint()" class="text-lime-600 hover:text-lime-800 text-sm font-bold flex items-center justify-center gap-2 mx-auto py-3 px-6 rounded-full hover:bg-lime-50 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                         Adicionar Novo Tópico
                     </button>
                 </div>
 
                 <!-- Ilustração / Exemplo -->
-                <section class="border-l-4 border-amber-400 pl-4 bg-amber-50 rounded-r p-4 mt-6 print:bg-white print:border-l-2 print:border-gray-300">
-                    <label class="block text-xs font-bold uppercase tracking-wider text-amber-700 mb-1">Ilustração / Exemplo Prático</label>
-                    <textarea id="illustration" rows="2" class="w-full bg-transparent border-none outline-none sermon-text text-lg text-slate-700 placeholder-amber-800/40" placeholder="Anote aqui uma história, metáfora ou testemunho para ilustrar a mensagem..."></textarea>
+                <section class="border-l-4 border-amber-400 pl-4 bg-amber-50 rounded-r-lg p-4 mt-6 print:bg-white print:border-l-2 print:border-gray-300">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-amber-700 mb-1">Ilustração / Exemplo</label>
+                    <textarea id="illustration" rows="2" class="w-full bg-transparent border-none outline-none sermon-text text-lg text-slate-700 placeholder-amber-800/40" placeholder="Anote aqui uma história ou testemunho..."></textarea>
                 </section>
 
                 <!-- Conclusão -->
                 <section>
-                    <div class="flex items-center gap-2 mb-2 text-indigo-700 font-semibold uppercase tracking-wide text-sm mt-8">
+                    <div class="flex items-center gap-2 mb-2 text-lime-700 font-bold uppercase tracking-wide text-sm mt-8">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
                         Conclusão & Apelo
                     </div>
-                    <textarea id="conclusion" rows="4" class="w-full p-3 rounded bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none sermon-text text-lg leading-relaxed transition-colors duration-300" placeholder="Resumo dos pontos, aplicação prática para a semana e oração final..."></textarea>
+                    <textarea id="conclusion" rows="4" class="w-full p-3 rounded-lg bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-lime-200 focus:border-lime-500 outline-none sermon-text text-lg leading-relaxed transition-colors duration-300" placeholder="Resumo, aplicação prática e oração final..."></textarea>
                 </section>
 
             </div>
             
-            <div class="mt-8 pt-4 border-t text-center text-slate-400 text-sm italic no-print">
-                <p>Todas as alterações são salvas automaticamente no seu navegador.</p>
+            <div class="mt-8 pt-4 border-t text-center text-slate-400 text-xs md:text-sm italic no-print">
+                <p>Alterações salvas automaticamente.</p>
             </div>
         </div>
     </main>
@@ -329,7 +418,6 @@
                 alert("Digite um texto bíblico primeiro (ex: João 3:16).");
                 return;
             }
-            // Usa o Biblia Online como padrão de pesquisa
             const url = `https://www.bibliaonline.com.br/acf/busca?q=${encodeURIComponent(bibleInput)}`;
             window.open(url, '_blank');
         }
@@ -355,11 +443,27 @@
             }
             
             if(illustration) message += `*Ilustração:*\n${illustration}\n\n`;
-            
             if(conclusion) message += `*Conclusão:*\n${conclusion}`;
             
+            // Adicionar hinos se tiver
+            const songs = document.getElementById('worshipSongs').value;
+            if(songs) message += `\n\n🎶 *Louvores Sugeridos:*\n${songs}`;
+
             const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
             window.open(url, '_blank');
+        }
+
+        // --- BACKUP DOWNLOAD ---
+        function downloadBackup() {
+            const title = document.getElementById('sermonTitle').value || "sermon";
+            const text = constructSermonText(false); // false = not for speech, adds line breaks
+            const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
         }
 
         // --- CRONÔMETRO DE PÚLPITO ---
@@ -385,13 +489,13 @@
             const btn = document.getElementById('timer-btn');
             if (isRunning) {
                 clearInterval(timerInterval);
-                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>'; // Play Icon
+                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>'; // Play Icon
             } else {
                 timerInterval = setInterval(() => {
                     seconds++;
                     updateTimerDisplay();
                 }, 1000);
-                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>'; // Pause Icon
+                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>'; // Pause Icon
             }
             isRunning = !isRunning;
         }
@@ -401,162 +505,183 @@
             isRunning = false;
             seconds = 0;
             updateTimerDisplay();
-            document.getElementById('timer-btn').innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+            document.getElementById('timer-btn').innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
         }
 
         // --- PREPARAÇÃO INTELIGENTE PARA IMPRESSÃO ---
-        // Isso resolve o problema de texto cortado convertendo Textareas em Texto Puro antes de imprimir
-        
         window.addEventListener('beforeprint', () => {
-            // Encontra todos os inputs e textareas que queremos imprimir
             document.querySelectorAll('textarea, input[type="text"]').forEach(el => {
-                // Pula se estiver vazio
                 if (!el.value.trim()) return;
-
                 const div = document.createElement('div');
                 div.className = 'print-replacement ' + el.className;
-                
-                // Limpeza de classes que atrapalham a impressão (cores de fundo, bordas de foco)
-                div.classList.remove('bg-slate-50', 'focus:ring-2', 'focus:border-indigo-500', 'bg-transparent');
-                
-                // Adiciona classe específica se for o título principal para ficar maior
-                if(el.id === 'sermonTitle') {
-                    div.classList.add('title-print');
-                }
-
+                div.classList.remove('bg-slate-50', 'focus:ring-2', 'focus:border-lime-500', 'bg-transparent', 'bg-white', 'border-blue-200', 'bg-purple-50');
+                if(el.id === 'sermonTitle') div.classList.add('title-print');
                 div.textContent = el.value;
-                
-                // Insere a div logo antes do elemento original
                 el.parentNode.insertBefore(div, el);
             });
         });
 
         window.addEventListener('afterprint', () => {
-            // Remove todas as divs temporárias criadas para impressão
             document.querySelectorAll('.print-replacement').forEach(el => el.remove());
         });
 
-        // --- SISTEMA DE NARRAÇÃO (Text-to-Speech) ---
-
+        // --- SISTEMA DE NARRAÇÃO ---
         let isSpeaking = false;
-        
         function toggleNarration() {
             const btn = document.getElementById('btn-narrate');
-
             if (isSpeaking) {
-                // Parar Narração
                 window.speechSynthesis.cancel();
                 isSpeaking = false;
-                btn.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-                `;
+                btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg><span class="hidden md:inline">Ouvir</span>`;
                 btn.classList.remove('speaking-animation');
+                btn.classList.replace('text-white', 'text-lime-400');
+                btn.classList.replace('bg-pink-600', 'bg-slate-800');
             } else {
-                // Começar Narração
-                const textToRead = constructSermonText();
-                if(!textToRead) {
-                    alert("Não há texto para ler. Escreva algo primeiro!");
-                    return;
-                }
-
+                const textToRead = constructSermonText(true);
+                if(!textToRead) { alert("Não há texto para ler."); return; }
                 const utterance = new SpeechSynthesisUtterance(textToRead);
                 utterance.lang = 'pt-BR';
-                
-                // Tenta selecionar a melhor voz em PT-BR
                 const voices = window.speechSynthesis.getVoices();
-                // Preferência: Google PT-BR -> Microsoft -> Qualquer PT-BR
-                const bestVoice = voices.find(v => v.lang === 'pt-BR' && v.name.includes('Google')) ||
-                                  voices.find(v => v.lang === 'pt-BR' && v.name.includes('Microsoft')) ||
-                                  voices.find(v => v.lang === 'pt-BR');
-                
-                if (bestVoice) {
-                    utterance.voice = bestVoice;
-                }
-
-                // Ajustes de velocidade e tom
-                utterance.rate = 1.0; // Velocidade normal
-                utterance.pitch = 1.0;
-
-                // Evento ao terminar
+                const bestVoice = voices.find(v => v.lang === 'pt-BR' && v.name.includes('Google')) || voices.find(v => v.lang === 'pt-BR');
+                if (bestVoice) utterance.voice = bestVoice;
                 utterance.onend = function() {
                     isSpeaking = false;
-                    btn.innerHTML = `
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-                    `;
+                    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg><span class="hidden md:inline">Ouvir</span>`;
                     btn.classList.remove('speaking-animation');
+                    btn.classList.replace('text-white', 'text-lime-400');
+                    btn.classList.replace('bg-pink-600', 'bg-slate-800');
                 };
-
                 window.speechSynthesis.speak(utterance);
                 isSpeaking = true;
-                
-                // Mudar ícone para "Parar" e animar
-                btn.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
-                `;
+                btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg><span class="hidden md:inline">Parar</span>`;
                 btn.classList.add('speaking-animation');
+                btn.classList.replace('text-lime-400', 'text-white');
+                btn.classList.replace('bg-slate-800', 'bg-pink-600');
             }
         }
 
-        function constructSermonText() {
+        function constructSermonText(forSpeech = true) {
             let text = "";
+            const sep = forSpeech ? ". ... " : "\n\n";
             
-            // Helper para adicionar texto se existir
-            const add = (label, elementId, pause = true) => {
+            const add = (label, elementId) => {
                 const el = document.getElementById(elementId);
                 if (el && el.value.trim()) {
-                    text += `${label}. ${el.value}. `;
-                    if(pause) text += " ... "; // Pausa forçada na fala
+                    text += forSpeech ? `${label}. ${el.value}${sep}` : `${label.toUpperCase()}:\n${el.value}${sep}`;
                 }
             };
 
-            add("Título da Mensagem", "sermonTitle");
-            add("Texto Bíblico Base", "bibleText");
-            add("Data e Ocasião", "sermonDate");
+            add("Título", "sermonTitle");
+            add("Texto", "bibleText");
+            add("Data", "sermonDate");
             add("Introdução", "intro");
 
-            // Pontos Dinâmicos
             const points = document.getElementById('points-container').children;
             for(let i=0; i<points.length; i++) {
                 const titleInput = points[i].querySelector('input');
                 const contentArea = points[i].querySelector('textarea');
-                
-                if(titleInput.value.trim()) text += `Tópico ${i+1}: ${titleInput.value}. `;
-                if(contentArea.value.trim()) text += `${contentArea.value}. ... `;
+                if(titleInput.value.trim()) {
+                    text += forSpeech ? `Tópico ${i+1}: ${titleInput.value}. ` : `TÓPICO ${i+1}: ${titleInput.value}\n`;
+                }
+                if(contentArea.value.trim()) {
+                    text += `${contentArea.value}${sep}`;
+                }
             }
 
-            add("Ilustração Prática", "illustration");
-            add("Conclusão e Apelo", "conclusion");
-
+            add("Ilustração", "illustration");
+            add("Conclusão", "conclusion");
+            
+            // Add study content if exists
+            const sContext = document.getElementById('studyContext').value;
+            if(sContext) text += forSpeech ? `Contexto Histórico: ${sContext}${sep}` : `CONTEXTO HISTÓRICO:\n${sContext}${sep}`;
+            
             return text;
         }
 
-        // --- FUNÇÕES DE IMPORTAÇÃO SIMPLIFICADA ---
+        // --- FUNÇÕES DE ESTUDO & IMPORTAÇÃO ---
+
+        function toggleStudyPanel() {
+            const panel = document.getElementById('study-panel');
+            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+            if(panel.style.display === 'block') {
+                panel.classList.add('active');
+                setTimeout(() => window.scrollTo({ top: panel.offsetTop - 100, behavior: 'smooth' }), 100);
+            }
+        }
 
         function openImportModal() {
+            document.getElementById('import-modal').style.display = 'flex';
+            setPromptType('sermon'); // Default
+        }
+
+        function setPromptType(type) {
+            const btnSermon = document.getElementById('btn-type-sermon');
+            const btnStudy = document.getElementById('btn-type-study');
+            
+            if(type === 'sermon') {
+                btnSermon.classList.replace('border-slate-200', 'border-lime-200');
+                btnSermon.classList.replace('text-slate-600', 'text-lime-800');
+                btnSermon.classList.add('bg-lime-50', 'font-bold');
+                
+                btnStudy.classList.replace('border-lime-200', 'border-slate-200');
+                btnStudy.classList.replace('text-lime-800', 'text-slate-600');
+                btnStudy.classList.remove('bg-lime-50', 'font-bold');
+            } else {
+                btnStudy.classList.replace('border-slate-200', 'border-lime-200');
+                btnStudy.classList.replace('text-slate-600', 'text-lime-800');
+                btnStudy.classList.add('bg-lime-50', 'font-bold');
+                
+                btnSermon.classList.replace('border-lime-200', 'border-slate-200');
+                btnSermon.classList.replace('text-lime-800', 'text-slate-600');
+                btnSermon.classList.remove('bg-lime-50', 'font-bold');
+            }
+
             const title = document.getElementById('sermonTitle').value.trim();
             const bible = document.getElementById('bibleText').value.trim();
             
-            // Gerar o prompt automaticamente com base no que o usuário já digitou (se houver)
-            let promptText = `Aja como um assistente para pastores. Crie um esboço de pregação estruturado em formato JSON.
+            let promptText = "";
+            
+            if (type === 'sermon') {
+                promptText = `Aja como um assistente para pastores. Crie um esboço de pregação inspirador.
 ${title ? `TEMA: "${title}"` : 'TEMA: Escolha um tema bíblico edificante'}
 ${bible ? `TEXTO: "${bible}"` : ''}
 
-REGRAS:
-1. Responda APENAS com o JSON cru. Não use markdown.
-2. Siga estritamente este formato:
+REGRAS: Responda APENAS com este JSON (sem markdown):
 {
-  "title": "Título do Sermão",
-  "bible_text": "Referência Bíblica",
-  "intro": "Texto da introdução",
+  "title": "Título",
+  "bible_text": "Ref.",
+  "intro": "Introdução...",
   "topics": [
     {"title": "Tópico 1", "content": "Conteúdo..."},
     {"title": "Tópico 2", "content": "Conteúdo..."}
   ],
-  "illustration": "Uma ilustração prática",
-  "conclusion": "Conclusão e apelo"
+  "illustration": "Ilustração...",
+  "conclusion": "Conclusão..."
 }`;
+            } else {
+                promptText = `Aja como um teólogo experiente. Crie um Estudo Bíblico profundo e exegético.
+${title ? `TEMA: "${title}"` : 'TEMA: Escolha um tema teológico profundo'}
+${bible ? `TEXTO: "${bible}"` : ''}
+
+REGRAS: Responda APENAS com este JSON (sem markdown):
+{
+  "title": "Título do Estudo",
+  "bible_text": "Ref.",
+  "study_context": "Contexto histórico e cultural detalhado...",
+  "study_exegesis": "Análise das palavras-chave no original...",
+  "study_refs": "3 referências cruzadas...",
+  "worship_songs": "2 sugestões de hinos...",
+  "intro": "Introdução ao tema...",
+  "topics": [
+    {"title": "Ponto Teológico 1", "content": "Explicação profunda..."},
+    {"title": "Ponto Teológico 2", "content": "Explicação profunda..."}
+  ],
+  "illustration": "Aplicação prática...",
+  "conclusion": "Síntese final..."
+}`;
+            }
+            
             document.getElementById('prompt-box').value = promptText;
-            document.getElementById('import-modal').style.display = 'flex';
         }
 
         function closeImportModal() {
@@ -571,66 +696,61 @@ REGRAS:
             
             const btn = document.querySelector('#import-modal button[onclick="copyPrompt()"]');
             const originalHTML = btn.innerHTML;
-            btn.innerHTML = 'Copiado!';
-            btn.classList.replace('bg-indigo-600', 'bg-green-600');
+            btn.innerHTML = 'COPIADO!';
+            btn.classList.replace('bg-lime-600', 'bg-slate-800');
             setTimeout(() => {
                 btn.innerHTML = originalHTML;
-                btn.classList.replace('bg-green-600', 'bg-indigo-600');
+                btn.classList.replace('bg-slate-800', 'bg-lime-600');
             }, 2000);
         }
 
         function processImport() {
             const rawInput = document.getElementById('json-input').value;
-            if (!rawInput.trim()) {
-                alert("Por favor, cole o texto gerado pela IA no campo.");
-                return;
-            }
+            if (!rawInput.trim()) { alert("Por favor, cole o texto JSON."); return; }
 
             try {
-                // Tenta limpar o input caso o usuário cole markdown ou texto extra
-                let cleanJson = rawInput.trim();
-                cleanJson = cleanJson.replace(/```json/g, '').replace(/```/g, '');
-                
+                let cleanJson = rawInput.trim().replace(/```json/g, '').replace(/```/g, '');
                 const firstBrace = cleanJson.indexOf('{');
                 const lastBrace = cleanJson.lastIndexOf('}');
-                
-                if (firstBrace !== -1 && lastBrace !== -1) {
-                    cleanJson = cleanJson.substring(firstBrace, lastBrace + 1);
-                }
+                if (firstBrace !== -1 && lastBrace !== -1) cleanJson = cleanJson.substring(firstBrace, lastBrace + 1);
 
                 const data = JSON.parse(cleanJson);
                 
-                // Preencher campos
+                // Preencher campos padrão
                 if (data.title) document.getElementById('sermonTitle').value = data.title;
                 if (data.bible_text) document.getElementById('bibleText').value = data.bible_text;
                 if (data.intro) document.getElementById('intro').value = data.intro;
                 if (data.illustration) document.getElementById('illustration').value = data.illustration;
                 if (data.conclusion) document.getElementById('conclusion').value = data.conclusion;
 
+                // Preencher Campos de Estudo (se houver)
+                if (data.study_context || data.study_exegesis) {
+                    const panel = document.getElementById('study-panel');
+                    panel.style.display = 'block'; // Auto-open study panel
+                    if(data.study_context) document.getElementById('studyContext').value = data.study_context;
+                    if(data.study_exegesis) document.getElementById('studyExegesis').value = data.study_exegesis;
+                    if(data.study_refs) document.getElementById('studyRefs').value = data.study_refs;
+                    if(data.worship_songs) document.getElementById('worshipSongs').value = data.worship_songs;
+                }
+
                 // Preencher Tópicos
                 const pointsContainer = document.getElementById('points-container');
                 pointsContainer.innerHTML = ''; 
-                
                 if (data.topics && Array.isArray(data.topics)) {
-                    data.topics.forEach((topic, index) => {
-                        createPointElement(pointsContainer, index + 1, topic.title, topic.content);
-                    });
+                    data.topics.forEach((topic, index) => createPointElement(pointsContainer, index + 1, topic.title, topic.content));
                 } else {
-                    // Fallback se não vier tópicos
                     createPointElement(pointsContainer, 1, "Tópico I", "");
                     createPointElement(pointsContainer, 2, "Tópico II", "");
-                    createPointElement(pointsContainer, 3, "Tópico III", "");
                 }
 
-                // Ajustar interface
                 document.querySelectorAll('textarea').forEach(t => autoResize(t));
                 saveData();
                 closeImportModal();
-                alert("Esboço importado com sucesso!");
+                alert("Conteúdo importado com sucesso!");
 
             } catch (e) {
                 console.error(e);
-                alert("Erro ao ler o texto colado. Certifique-se de que copiou a resposta completa da IA (o código JSON).");
+                alert("Erro ao ler o código. Verifique se copiou a resposta completa.");
             }
         }
 
@@ -639,21 +759,18 @@ REGRAS:
         function createPointElement(container, index, titleVal = '', contentVal = '') {
             const romanNumerals = ["", "I", "II", "III", "IV", "V", "VI"];
             const roman = index < romanNumerals.length ? romanNumerals[index] : index;
-
             const div = document.createElement('div');
             div.className = 'point-item relative group mt-6';
             div.innerHTML = `
                 <div class="flex items-center justify-between mb-2">
-                    <h3 class="text-indigo-700 font-bold text-lg uppercase flex items-center gap-2">
-                        <span class="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded-full w-6 h-6 flex items-center justify-center">${index}</span>
+                    <h3 class="text-lime-700 font-bold text-lg uppercase flex items-center gap-2">
+                        <span class="bg-lime-100 text-lime-800 text-xs px-2 py-1 rounded-full w-6 h-6 flex items-center justify-center border border-lime-300">${index}</span>
                         Tópico ${roman}
                     </h3>
-                    <button onclick="this.closest('.point-item').remove(); saveData();" class="text-red-400 hover:text-red-600 no-print opacity-0 group-hover:opacity-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                    </button>
+                    <button onclick="this.closest('.point-item').remove(); saveData();" class="text-red-400 hover:text-red-600 no-print opacity-0 group-hover:opacity-100 transition"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
                 </div>
-                <input type="text" value="${titleVal.replace(/"/g, '&quot;')}" placeholder="Título do Tópico" class="w-full font-bold text-xl mb-2 border-b border-slate-200 focus:border-indigo-500 outline-none bg-transparent pb-1 sermon-text">
-                <textarea rows="3" placeholder="Desenvolvimento..." class="w-full p-3 rounded bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none sermon-text text-lg leading-relaxed transition-colors duration-300">${contentVal}</textarea>
+                <input type="text" value="${titleVal.replace(/"/g, '&quot;')}" placeholder="Título do Tópico" class="w-full font-bold text-xl mb-2 border-b border-slate-200 focus:border-lime-500 outline-none bg-transparent pb-1 sermon-text">
+                <textarea rows="3" placeholder="Desenvolvimento..." class="w-full p-3 rounded-lg bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-lime-200 focus:border-lime-500 outline-none sermon-text text-lg leading-relaxed transition-colors duration-300">${contentVal}</textarea>
             `;
             container.appendChild(div);
         }
@@ -663,12 +780,7 @@ REGRAS:
             autoResize(event.target);
             saveData();
         });
-
-        document.addEventListener('change', function(event) {
-            if (event.target.tagName.toLowerCase() === 'input') {
-                saveData();
-            }
-        });
+        document.addEventListener('change', function(event) { if (event.target.tagName.toLowerCase() === 'input') saveData(); });
 
         function autoResize(element) {
             element.style.height = 'auto';
@@ -682,7 +794,6 @@ REGRAS:
 
         function togglePulpitMode() {
             document.body.classList.toggle('pulpit-mode');
-            const isPulpit = document.body.classList.contains('pulpit-mode');
             document.querySelectorAll('textarea').forEach(t => autoResize(t));
         }
 
@@ -694,6 +805,12 @@ REGRAS:
                 intro: document.getElementById('intro').value,
                 illustration: document.getElementById('illustration').value,
                 conclusion: document.getElementById('conclusion').value,
+                // Study fields
+                study_context: document.getElementById('studyContext').value,
+                study_exegesis: document.getElementById('studyExegesis').value,
+                study_refs: document.getElementById('studyRefs').value,
+                worship_songs: document.getElementById('worshipSongs').value,
+                
                 pointsHTML: document.getElementById('points-container').innerHTML
             };
             
@@ -703,11 +820,11 @@ REGRAS:
                 input.setAttribute('value', input.value);
                 if(input.tagName === 'TEXTAREA') input.textContent = input.value;
             });
+            
+            // Re-save html with values
+            data.pointsHTML = pointsContainer.innerHTML;
 
-            localStorage.setItem('sermonDraft', JSON.stringify({
-                ...data,
-                pointsHTML: pointsContainer.innerHTML
-            }));
+            localStorage.setItem('sermonDraft', JSON.stringify(data));
         }
 
         function loadData() {
@@ -721,19 +838,22 @@ REGRAS:
                 document.getElementById('illustration').value = data.illustration || '';
                 document.getElementById('conclusion').value = data.conclusion || '';
                 
+                // Study fields
+                if(data.study_context) {
+                    document.getElementById('studyContext').value = data.study_context;
+                    document.getElementById('study-panel').style.display = 'block'; // Show if has data
+                }
+                if(data.study_exegesis) document.getElementById('studyExegesis').value = data.study_exegesis;
+                if(data.study_refs) document.getElementById('studyRefs').value = data.study_refs;
+                if(data.worship_songs) document.getElementById('worshipSongs').value = data.worship_songs;
+                
                 if (data.pointsHTML) {
                     document.getElementById('points-container').innerHTML = data.pointsHTML;
                     const textareas = document.getElementById('points-container').querySelectorAll('textarea');
-                    textareas.forEach(t => {
-                        t.value = t.textContent; 
-                        autoResize(t);
-                    });
+                    textareas.forEach(t => { t.value = t.textContent; autoResize(t); });
                     const inputs = document.getElementById('points-container').querySelectorAll('input');
-                    inputs.forEach(i => {
-                        i.value = i.getAttribute('value');
-                    });
+                    inputs.forEach(i => { i.value = i.getAttribute('value'); });
                 }
-                
                 document.querySelectorAll('textarea').forEach(t => autoResize(t));
             }
         }
